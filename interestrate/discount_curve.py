@@ -28,7 +28,6 @@ def discount_factor_gen(rates):
     elif isinstance(rates, list):
         results = []
         for rate in rates:
-            print(rate)
             if isinstance(rate, dict):
                 results.append(_discount_factor_generate(rate))
 
@@ -42,14 +41,12 @@ def _discount_factor_generate(rate):
     strates.business_day = rate.get("st_busday")
     strates.day_count = rate.get("st_daycount")
     strates.rates = rate["rates"]
-    print("ST ",strates.rates)
 
     ltrates = LTRates()
     ltrates.frequency = rate.get("lt_frequency")
     ltrates.business_day = rate.get("lt_busday")
     ltrates.day_count = rate.get("lt_daycount")
     ltrates.rates = rate["rates"]
-    print("LT: ",ltrates.rates)
 
     myrates = Rates()
     myrates.strates = strates

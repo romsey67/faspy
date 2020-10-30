@@ -48,7 +48,7 @@ class Data:
             self.__data = newdata
         else:
             self.__data = {}
-        print(self.__data)
+
 
     def get(self, data_name):
         """
@@ -698,7 +698,6 @@ class DFactor(Data):
             myx = list(map(lambda x: x['dcf'], self.__data))
 
         y_axis = list(map(lambda x: x['df'], self.__data))
-        #print(myx,y_axis)
         return interpolation(myx, y_axis, x_value, model=model, method=method, is_function=is_function)
 
 

@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['discount_curve.py', '../test_discount_factor_gen.py', '../test_DFactor.py', 'conventions.py', 'fas_ircls.py', 'rmp_dates.py', 'rmp_curves.py']
+recent_files = ['discount_curve.py', '../test_discount_factor_gen.py', 'rmp_dates.py', 'rmp_curves.py', 'fas_ircls.py']
 
