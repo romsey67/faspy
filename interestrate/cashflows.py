@@ -10,8 +10,8 @@ from numpy import datetime64 as dt64
 import numpy as np
 from .rmp_dates import generate_dates as gen_dates, \
     frequencies as fre,  day_count_factor as day_cf
-from interestrate.conventions import start_basis
-import rmp_curves as rcurve
+from .conventions import start_basis
+import .rmp_curves as rcurve
 from collections import deque
 
 
