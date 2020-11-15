@@ -2,11 +2,11 @@
 import numpy as np
 from numpy import datetime64 as dt64
 from sympy import Symbol, diff, solve
-from .rmp_dates import generate_dates as gen_dates
-from .rmp_dates import frequencies as fre
-from .rmp_dates import day_count_factor as day_cf, convs
+from faspy.interestrate.rmp_dates import generate_dates as gen_dates
+from faspy.interestrate.rmp_dates import frequencies as fre
+from faspy.interestrate.rmp_dates import day_count_factor as day_cf, convs
 import functools
-from .rmp_solvers import solver_bond_derivatives as sbd
+from faspy.interestrate.rmp_solvers import solver_bond_derivatives as sbd
 from numba import njit
 
 
@@ -223,6 +223,7 @@ def solver_bond_duration(fv, cpns=[], cpn_dcfs=[], yld_dcfs=[],
     convexity = expr_convex.evalf(subs={yld: my_yield})
     # print('Convexity >>>>>>',convexity)
     return {'duration': duration, 'convexity': convexity}
+
 
 
 def create_bond_dates(bond):

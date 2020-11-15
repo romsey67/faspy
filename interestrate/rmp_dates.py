@@ -3,7 +3,7 @@ from numpy import datetime64 as dt64, timedelta64 as td64
 import re
 from datetime import datetime
 import numba
-from conventions import *
+from faspy.interestrate.conventions import *
 from collections import deque
 
 
@@ -200,9 +200,6 @@ def _dcf_a365(prev_date, current_date, business_day=None, Frequency=1):
                                             business_day=business_day,
                                             Frequency=Frequency)
                 return years + yearfrac
-
-
-
 
 
 def _dcf_a365f(prev_date, current_date):

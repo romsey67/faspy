@@ -6,9 +6,9 @@ Created on Tue Jul  7 17:29:52 2020
 @author: RMS671214
 """
 from numpy import datetime64 as dt64
-from .conventions import *
-from .rmp_dates import day_count_factor as day_cf
-from . import rmp_bhelp as bh
+from conventions import *
+from rmp_dates import day_count_factor as day_cf
+import rmp_bhelp as bh
 
 
 

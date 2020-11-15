@@ -28,3 +28,4 @@ rate = {"value_date": "2020-10-30", "st_busday": "Modified Following",
 rates.append(rate)
 
 dfs = dcurve.discount_factor_gen(rates)
+print(dfs)

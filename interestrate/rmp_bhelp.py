@@ -5,16 +5,16 @@ Created on Sat Apr 25 00:08:48 2020
 
 @author: ROSLI MOHD SANI
 """
-from .rmp_dates import generate_datesv102 as gen_dates, \
+from faspy.interestrate.rmp_dates import generate_datesv102 as gen_dates, \
     frequencies as fre
-from .rmp_dates import day_count_factor as day_cf
+from faspy.interestrate.rmp_dates import day_count_factor as day_cf
 
 from numpy import datetime64 as dt64, busday_offset as bus_off
 import numpy as np
-from .conventions import start_basis
+from faspy.interestrate.conventions import start_basis
 
 import functools
-from .rmp_solvers import solver_bond_derivatives as sbd, bond_risk
+from faspy.interestrate.rmp_solvers import solver_bond_derivatives as sbd, bond_risk
 from numba import njit, jit
 
 
