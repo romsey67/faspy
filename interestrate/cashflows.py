@@ -11,7 +11,8 @@ import numpy as np
 from .rmp_dates import generate_dates as gen_dates, \
     frequencies as fre,  day_count_factor as day_cf
 from .conventions import start_basis
-import .rmp_curves as rcurve
+import .rmp_curves import interpolation, calc_shortrate_from_df, \
+calc_df_from_shortrate, calc_fwd_df
 from collections import deque
 
 
@@ -293,7 +294,7 @@ def floatbond_value(value_date, structures, spread, day_count, df_func=None,
     elif dfs is not None:
         x_axis = [x["times"] for x in dfs]
         y_axis = [x["df"] for x in dfs]
-        ifunc = rcurve.interpolation(x_axis, y_axis, 1.00, is_function=True)
+        ifunc = interpolation(x_axis, y_axis, 1.00, is_function=True)
     else:
         return None
 
@@ -302,10 +303,10 @@ def floatbond_value(value_date, structures, spread, day_count, df_func=None,
     if datum["is_fixed"] is True:
         time = day_cf("Actual/365", value_date, datum["end_date"])
         calc_df = ifunc(time)
-        rate = rcurve.calc_shortrate_from_df(value_date, datum["end_date"],
+        rate = calc_shortrate_from_df(value_date, datum["end_date"],
                                              calc_df, day_count)
         adj_rate = rate + spread
-        adj_df = rcurve.calc_df_from_shortrate(value_date, datum["end_date"],
+        adj_df = calc_df_from_shortrate(value_date, datum["end_date"],
                                                adj_rate, day_count)
         datum["fwd_df"] = adj_df
         df = df * adj_df
@@ -319,8 +320,8 @@ def floatbond_value(value_date, structures, spread, day_count, df_func=None,
         if datum["is_fixed"] is False:
             stime = day_cf("Actual/365", value_date, datum["start_date"])
             etime = day_cf("Actual/365", value_date, datum["end_date"])
-            fwd_df = rcurve.calc_fwd_df(stime, etime, ifunc=ifunc)
-            ref_rate = rcurve.calc_shortrate_from_df(datum["start_date"],
+            fwd_df = calc_fwd_df(stime, etime, ifunc=ifunc)
+            ref_rate = calc_shortrate_from_df(datum["start_date"],
                                                      datum["end_date"],
                                                      fwd_df, day_count)
             datum["coupon"] = ref_rate + datum["margin"]
@@ -328,7 +329,7 @@ def floatbond_value(value_date, structures, spread, day_count, df_func=None,
                                         datum["coupon"] *
                                         datum["face_value"] / 100)
             adj_refrate = ref_rate + spread
-            adj_df = rcurve.calc_df_from_shortrate(datum["start_date"],
+            adj_df = calc_df_from_shortrate(datum["start_date"],
                                                    datum["end_date"], adj_refrate,
                                                    day_count)
             datum["fwd_df"] = adj_df
@@ -344,11 +345,11 @@ def floatbond_value2(value_date, structures, day_count, ref_df, market_df):
 
     ref_x_axis = [x["times"] for x in ref_df]
     ref_y_axis = [x["df"] for x in ref_df]
-    ref_func = rcurve.interpolation(ref_x_axis, ref_y_axis, 1.00, is_function=True)
+    ref_func = interpolation(ref_x_axis, ref_y_axis, 1.00, is_function=True)
 
     m_x_axis = [x["times"] for x in market_df]
     m_y_axis = [x["df"] for x in market_df]
-    m_func = rcurve.interpolation(m_x_axis, m_y_axis, 1.00, is_function=True)
+    m_func = interpolation(m_x_axis, m_y_axis, 1.00, is_function=True)
 
     datum = structures[0]
 
@@ -366,8 +367,8 @@ def floatbond_value2(value_date, structures, day_count, ref_df, market_df):
         if datum["is_fixed"] is False:
             stime = day_cf("Actual/365", value_date, datum["start_date"])
             etime = day_cf("Actual/365", value_date, datum["end_date"])
-            fwd_df = rcurve.calc_fwd_df(stime, etime, ifunc=ref_func)
-            ref_rate = rcurve.calc_shortrate_from_df(datum["start_date"],
+            fwd_df = calc_fwd_df(stime, etime, ifunc=ref_func)
+            ref_rate = calc_shortrate_from_df(datum["start_date"],
                                                      datum["end_date"],
                                                      fwd_df, day_count)
             datum["coupon"] = ref_rate + datum["margin"]
