@@ -8,7 +8,7 @@ Created on Mon Nov  2 09:57:01 2020
 
 from numpy import datetime64 as dt64
 import numpy as np
-from interestrate.rmp_dates import generate_dates as gen_dates, \
+from rmp_dates import generate_dates as gen_dates, \
     frequencies as fre,  day_count_factor as day_cf
 from interestrate.conventions import start_basis
 import rmp_curves as rcurve
@@ -125,7 +125,7 @@ def fixbond_value(value_date, structures, ytm, day_count, frequency):
                                           Frequency=frequency)
             structure["period_df"] = 1 / (1 + structure["ytm_dcf"] * ytm / 100)
             structure["accrued"] = 0.00
-            
+
         elif structure["end_date"] <= value_date:
             structure["ytm_dcf"] = 0.00
             structure["period_df"] = 0.00
@@ -345,13 +345,13 @@ def floatbond_value2(value_date, structures, day_count, ref_df, market_df):
     ref_x_axis = [x["times"] for x in ref_df]
     ref_y_axis = [x["df"] for x in ref_df]
     ref_func = rcurve.interpolation(ref_x_axis, ref_y_axis, 1.00, is_function=True)
-    
+
     m_x_axis = [x["times"] for x in market_df]
     m_y_axis = [x["df"] for x in market_df]
     m_func = rcurve.interpolation(m_x_axis, m_y_axis, 1.00, is_function=True)
 
     datum = structures[0]
-    
+
     if datum["is_fixed"] is True:
         time = day_cf("Actual/365", value_date, datum["end_date"])
         m_df = m_func(time)
@@ -419,4 +419,3 @@ def _loan_gen_structure(loan):
         pass
 
     return structures
-
