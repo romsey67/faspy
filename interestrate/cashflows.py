@@ -11,7 +11,7 @@ import numpy as np
 from .rmp_dates import generate_dates as gen_dates, \
     frequencies as fre,  day_count_factor as day_cf
 from .conventions import start_basis
-import .rmp_curves import interpolation, calc_shortrate_from_df, \
+from .rmp_curves import interpolation, calc_shortrate_from_df, \
 calc_df_from_shortrate, calc_fwd_df
 from collections import deque
 
