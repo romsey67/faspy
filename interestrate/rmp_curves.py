@@ -272,7 +272,7 @@ def convert_shortrate_to_compounding(rate, start, end, frequency=12,
         else:
             cur_date = next_cpn
 
-        cmp_dcf = day_f(compound_dc,prev_cpn, cur_date,
+        cmp_dcf = day_cf(compound_dc,prev_cpn, cur_date,
                                bondmat_date = dates[-1], next_coupon_date = next_cpn,
                                business_day = compound_busday,
                                Frequency = compound_fre)
