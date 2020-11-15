@@ -1,9 +1,8 @@
 import numpy as np
 from numpy import datetime64 as dt64
-import faspy.interestrate.rmp_dates as npd
-from  faspy.interestrate.rmp_dates import tenor_to_maturity as ttm, \
+from .rmp_dates import tenor_to_maturity as ttm, \
 day_count_factor as day_cf
-from faspy.interestrate.rmp_dates import generate_dates as gen_dates
+from .rmp_dates import generate_dates as gen_dates
 from scipy import interpolate
 import sympy as sy
 import numba
@@ -39,9 +38,9 @@ def generate_st_df_bymaturity(value_date, maturity, rate, convention,
                               business_day, rate_basis='Money Market',
                               holidays=[]):
     result = {}
-    dcf = npd.day_count_factor(convention, value_date, maturity)
+    dcf = day_cf(convention, value_date, maturity)
 
-    time = npd.day_count_factor('Actual/365', value_date, maturity)
+    time = day_cf('Actual/365', value_date, maturity)
     #print('dcf: ',dcf)
     df = None
     if rate_basis == 'Money Market':
@@ -58,10 +57,7 @@ def generate_st_df_bymaturity(value_date, maturity, rate, convention,
     return result
 
 
-
-
 # In[10]:
-
 def generate_fulldf(value_date, st_curve, st_daycount, st_business_day,
                     st_rate_basis, lt_curve, lt_daycount,
                     lt_business_day, frequency=6,
@@ -247,19 +243,19 @@ def convert_shortrate_to_compounding(rate, start, end, frequency=12,
     fre = 12/frequency
     compound_fre = 12/compound_frequency
 
-    dcf = npd.day_count_factor(convention, start, end, Frequency=fre)
+    dcf = day_cf(convention, start, end, Frequency=fre)
     df = None
     if rate_basis == 'Money Market':
         df = 1/(1 + rate * 0.01 * dcf)
     else:
         df = 1-rate * 0.01 * dcf
-    two_year_date = npd.tenor_to_maturity(start, '2Y',
+    two_year_date = ttm(start, '2Y',
                                           convention=compound_dc,
                                           business_day=compound_busday,
                                           holidays=[])
     li_cpn_dcf = []
 
-    dates = npd.generate_dates(start, two_year_date, issueDate=start,
+    dates = gen_dates(start, two_year_date, issueDate=start,
                                frequency=compound_frequency,
                                business_day=compound_busday,
                                method=method, holidays=[])
@@ -276,7 +272,7 @@ def convert_shortrate_to_compounding(rate, start, end, frequency=12,
         else:
             cur_date = next_cpn
 
-        cmp_dcf = npd.day_count_factor(compound_dc,prev_cpn, cur_date,
+        cmp_dcf = day_f(compound_dc,prev_cpn, cur_date,
                                bondmat_date = dates[-1], next_coupon_date = next_cpn,
                                business_day = compound_busday,
                                Frequency = compound_fre)
@@ -328,12 +324,12 @@ def solver_rate_from_compounded_df(dis_factor,daycount_factors):
 
 
 def calc_fwd_df(start, end, time_axis=None, df_axis=None, ifunc=None):
-    
+
     if ifunc is not None:
         df1 = ifunc(start)
         df2 = ifunc(end)
         return df2 / df1
-    
+
     elif (time_axis is not None and df_axis is not None):
         interp = interpolation(time_axis, df_axis, start, is_function=True)
         df1 = interp(start)
@@ -377,11 +373,11 @@ def continuous_rate(value_date, rate, tenor, day_count="Actual/365",
         df = _mmr2df(float(rate), float(dcf))
     elif rate_basis == "Discount Rate":
         df = _dr2df(float(rate), float(dcf))
-    
+
     crate = -math.log(df)/time
     return crate
-    
-    
+
+
 
 
 @numba.njit('float64(float64, float64)')

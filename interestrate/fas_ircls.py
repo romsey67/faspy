@@ -6,15 +6,15 @@ Created on Wed Apr 29 09:39:29 2020
 @author: RMS671214
 """
 
-from faspy.interestrate.rmp_dates import  day_count_factor as day_cf
-from faspy.interestrate.rmp_dates import tenor_to_maturity as ttm
-from faspy.interestrate.rmp_curves import generate_st_df as gen_stdf
+from .rmp_dates import  day_count_factor as day_cf
+from .rmp_dates import tenor_to_maturity as ttm
+from .rmp_curves import generate_st_df as gen_stdf
 from numpy import datetime64 as dt64, busdaycalendar as cal
 from numpy import busday_offset as bus_off
-from faspy.interestrate.rmp_curves import generate_fulldf as gen_fdf, \
+from .rmp_curves import generate_fulldf as gen_fdf, \
     interpolation
 from numba import njit
-from faspy.interestrate.conventions import *
+from .conventions import *
 
 class Data:
     """

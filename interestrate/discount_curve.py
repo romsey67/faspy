@@ -5,8 +5,8 @@ Created on Fri Oct 30 10:49:32 2020
 
 @author: RMS671214
 """
-from faspy.interestrate.rmp_curves import *
-from faspy.interestrate.fas_ircls import STRates, LTRates, Rates
+from .rmp_curves import *
+from .fas_ircls import STRates, LTRates, Rates
 
 
 # %%
