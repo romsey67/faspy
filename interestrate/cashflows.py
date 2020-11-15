@@ -8,7 +8,7 @@ Created on Mon Nov  2 09:57:01 2020
 
 from numpy import datetime64 as dt64
 import numpy as np
-from rmp_dates import generate_dates as gen_dates, \
+from .rmp_dates import generate_dates as gen_dates, \
     frequencies as fre,  day_count_factor as day_cf
 from interestrate.conventions import start_basis
 import rmp_curves as rcurve
