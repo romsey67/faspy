@@ -3,7 +3,7 @@ from numpy import datetime64 as dt64, timedelta64 as td64
 import re
 from datetime import datetime
 import numba
-from faspy.interestrate.conventions import *
+from .conventions import *
 from collections import deque
 
 
