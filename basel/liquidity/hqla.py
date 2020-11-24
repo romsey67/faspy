@@ -54,6 +54,22 @@ class Level:
                 val += self.__child[key].value()
                 if isinstance(self.__factor, float):
                     val += self.__amount * self.__factor
-            
-
         return val
+
+
+    def get_array(self):
+
+        level_size = len(self.__child)
+        if level_size == 0:
+            mydict = {}
+            mydict["description"] = self.__description
+            mydict["amount"] = self.__amount
+            mydict["factor"] = self.__factor
+            mydict["value"] = self.value()
+            return mydict
+
+        else:
+            myarr = {"description": self.__description}
+            for key in self.__child:
+                myarr[key] = self.__child[key].get_array()
+            return myarr

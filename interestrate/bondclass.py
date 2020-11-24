@@ -6,9 +6,9 @@ Created on Tue Jul  7 17:29:52 2020
 @author: RMS671214
 """
 from numpy import datetime64 as dt64
-from conventions import *
-from rmp_dates import day_count_factor as day_cf
-import rmp_bhelp as bh
+from .conventions import *
+from .rmp_dates import day_count_factor as day_cf
+from .rmp_bhelp import *
 
 
 
@@ -127,7 +127,6 @@ class Bond:
         else:
             raise ValueError('Bond class error: ' + frequency + ' is not in'
                              + ' the list of frequencies')
-
 
 
 class FixBond(Bond):
@@ -267,7 +266,7 @@ class FixBond(Bond):
     def construct_bond(self):
         bonddict = self.__get_bonddict()
         try:
-            bh.construct_fixbond(bonddict)
+            construct_fixbond(bonddict)
             # print(bonddict)
 
             self.full_structures = bonddict['full_structures']
@@ -288,7 +287,7 @@ class FixBond(Bond):
         try:
             self.recalc_act_structures()
             bonddict['active_structures'] = self.active_structures
-            bh.fixbond_price(self.value_date, bonddict, self.ytm)
+            fixbond_price(self.value_date, bonddict, self.ytm)
         except ValueError as myerror:
             print(str(myerror))
 
@@ -524,7 +523,7 @@ class FRN(Bond):
     def construct_bond(self):
         bonddict = self.__get_bonddict()
         try:
-            bh.construct_frn(bonddict)
+            construct_frn(bonddict)
             self.__full_structures = bonddict['full_structures']
             self.__active_structures = bonddict['active_structures']
         except ValueError as error:
@@ -595,7 +594,7 @@ class FRN(Bond):
         try:
             self.recalc_act_structures()
             bonddict['active_structures'] = self.active_structures
-            bh.frn_price(bonddict, disc_curve)
+            frn_price(bonddict, disc_curve)
         except ValueError as myerror:
             print(str(myerror))
 

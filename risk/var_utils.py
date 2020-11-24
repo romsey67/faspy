@@ -11,7 +11,15 @@ def value_at_risk(assets, correlations):
 
 
 def logreturns(prices, period=1):
-    # prices should be a numpy array
+    """
+    Calculate the log returns of prices
+        Parameters:
+            prices: numpy.array. An array of prices. Variables are column based
+            period: int. number of observation period to calulate the returns
+        Returns:
+            numpy.array. An array of log returns
+
+    """
     rows, columns = prices.shape
     # slicing arrays
     price_current = prices[: rows - period]
@@ -80,7 +88,7 @@ def get_cfalloc(vol1, vol2, vol, cor1_2):
 
 # mapping of cash flow to vertices is only applicable to forward products
 # hence the requirement for discount factors
-def map_cf_to_var_vertices(cashflows,disfac, var_vertices,corr,vola):
+def map_cf_to_var_vertices(cashflows, disfac, var_vertices, corr, vola):
     # cashflows is an array of dictionary [{"times": float, "pv": float},]
     cf_vertices = list(map(lambda x: 0, var_vertices))
 
@@ -96,14 +104,12 @@ def map_cf_to_var_vertices(cashflows,disfac, var_vertices,corr,vola):
             vol = vola[index]
             cf_vertices[index] = cf_vertices[index] + cf['pv']
         else:
-            point2 = disfac[index]
-            point1 = disfac[index - 1]
+            point1, point2 = disfac[index - 1], disfac[index]
             weight = get_cfweight(point1, point2, cf['df'])
             weight = list(weight)
             weight = float(weight[0])
 
-            vol1 = vola[index-1]
-            vol2 = vola[index]
+            vol1, vol2 = vola[index-1], vola[index]
             vol = weight * vol1+ (1-weight)* vol2
             cor1_2 = corr[index-1][index]
 
@@ -119,8 +125,8 @@ def map_cf_to_var_vertices(cashflows,disfac, var_vertices,corr,vola):
             else:
                 cf_alloc = cf_alloc[0]
             #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-            cf_vertices[index-1] = cf_alloc * cf['pv'] + cf_vertices[index - 1]
-            cf_vertices[index]= (1-cf_alloc) * cf['pv'] + cf_vertices[index ]
+            cf_vertices[index-1] += cf_alloc * cf['pv']
+            cf_vertices[index] += (1-cf_alloc) * cf['pv']
     return cf_vertices
 
 

@@ -31,64 +31,29 @@ def fixbond_structures(bonds):
                 days, df, rate
     """
     if isinstance(bonds, dict):
-        results = _fixbond_gen_structure(bonds)
+        results = list(_fixbond_gen_structure(bonds))
 
     elif isinstance(bonds, list):
         results = []
         for bond in bonds:
             if isinstance(bond, dict):
-                results.append(_fixbond_gen_structure(bond))
+                results.append(list(_fixbond_gen_structure(bond)))
 
     return results
 
 
 def _fixbond_gen_structure(bond):
-    bus_day = None
-    if bond['business_day'] == 'NULL':
-        bus_day = 'No Adjustment'
-    else:
-        bus_day = bond['business_day']
+    dates = _dates_gen_structure(bond)
+    dates = deque(dates)
 
-    if bond['day_count'] == 'NULL':
-        day_count = 'Actual/Actual ICMA'
-    else:
-        day_count = bond['day_count']
-
-    start_date = bond.get('issue_date')
-    if start_date is not None:
-        start_date = dt64(start_date, 'D')
-    value_date = bond.get('value_date')
-
-    if value_date is not None:
-        value_date = dt64(value_date, 'D')
-    if start_date is not None and value_date is not None:
-        use_date = start_date
-    elif start_date is not None:
-        use_date = start_date
-    elif value_date is not None:
-        use_date = value_date
-    else:
-        raise Exception('Both value_date and issue_date do not have any value')
-    # dates is a deque
-    dates = gen_dates(use_date, bond['maturity'], issueDate=start_date,
-                      frequency=fre[bond['frequency']],
-                      business_day=bus_day, method=bond['date_generation'])
-
-    start_dates = deque(dates)
-    end_dates = deque(dates)
-    start_dates.pop()
-    end_dates.popleft()
-    noofcpns = len(start_dates)
-    structures = deque()
+    noofcpns = len(dates)
     for no in range(noofcpns):
         structure = {}
-        structure["start_date"] = start_dates[no]
-        structure["end_date"] = end_dates[no]
-        structure["cpn_dcf"] = day_cf(day_count,
-                                      structure["start_date"],
-                                      structure["end_date"],
+        structure["cpn_dcf"] = day_cf(bond["day_count"],
+                                      dates[no]["start_date"],
+                                      dates[no]["end_date"],
                                       bondmat_date=bond["maturity"],
-                                      next_coupon_date=structure["end_date"],
+                                      next_coupon_date=dates[no]["end_date"],
                                       business_day=bond["business_day"],
                                       Frequency=bond["frequency"])
         structure["coupon"] = bond["coupon"]
@@ -103,21 +68,37 @@ def _fixbond_gen_structure(bond):
         structure["cash_flow"] = (structure["coupon_interest"] +
                                   structure["fv_flow"])
 
-        structures.append(structure)
+        dates[no].update(structure) # merging the dictionary
 
-    if (bond.get("ytm") and value_date):
-        fixbond_value(value_date, structures, bond["ytm"], bond["day_count"],
+    if (bond.get("ytm") and bond["value_date"]):
+        fixbond_value(bond["value_date"], dates, bond["ytm"], bond["day_count"],
                       bond["frequency"])
 
-    return structures
+    return dates
 
 
-def fixbond_value(value_date, structures, ytm, day_count, frequency):
+def fixbond_value(value_date, structures, yld, day_count, frequency):
+    """
+    Revalue the bond.
 
-    maturity = structures[-1]["end_date"]
+            Parameters:
+                value_date: numpy.datetime64.
+                structures: a list of dictionaries with the following keys: value_date, start_date, end_date, face_value, coupon, coupon_interest and cpn_dcf. The list must be sorted in ascending order by either start_date or end_date. In the absence of coupon_interest and cpn_dcf, they will be calculated
+                day_count: str
+                frequeny: str
+            Returns:
+                a dictionary with the following keys - value_date, start_date, end_date, face_value, coupon, coupon_interest and cpn_dcf, ytm_df, period_df, accrued, df, and pv
+    """
+    try:
+        ytm = float(yld)
+    except Exception:
+        return
+    newstructures = [ dict(x) for x in structures]
+
+    maturity = newstructures[-1]["end_date"]
     # Calculate the periodic discount factor, accrued interest
-    for structure in structures:
-        if structure["start_date"] > value_date:
+    for structure in newstructures:
+        if structure["start_date"] >= value_date:
             structure["ytm_dcf"] = day_cf(day_count,
                                           structure["start_date"],
                                           structure["end_date"],
@@ -144,17 +125,17 @@ def fixbond_value(value_date, structures, ytm, day_count, frequency):
                                     structure["cpn_dcf"])
     # Calculate the discount factor, present value
     df = 1
-    for structure in structures:
+    for structure in newstructures:
         if structure["period_df"] == 0.00:
             structure["pv"] = 0.00
             structure["df"] = 0.00
         else:
             df = structure["df"] = df * structure["period_df"]
             structure["pv"] = structure["cash_flow"] * df
-    return
+    return newstructures
 
 
-def coupon_structures(bonds):
+def date_structures(bonds):
     """
     Generate coupon structures.
 
@@ -169,18 +150,30 @@ def coupon_structures(bonds):
                 days, df, rate
     """
     if isinstance(bonds, dict):
-        results = _coupon_gen_structure(bonds)
+        results = _dates_gen_structure(bonds)
 
     elif isinstance(bonds, list):
         results = []
         for bond in bonds:
             if isinstance(bond, dict):
-                results.append(_coupon_gen_structure(bond))
+                results.append(_dates_gen_structure(bond))
 
     return results
 
 
-def _coupon_gen_structure(bond):
+def _dates_gen_structure(bond):
+    """
+    Generate date structures. Function can be used for all coupon bearing products with bullet principal repayment
+
+            Parameters:
+                bonds: a dictionary with the following keys - value_date,
+                business_day, issue_date, value_date, maturity,
+                frequency, day_count, date_generation, face_value, coupon,
+                ytm and type.
+
+            Returns:
+                a dictionary or an array of dictionaries with the following keys - "start_date" and "end_date"
+    """
     bus_day = None
     if bond['business_day'] == 'NULL':
         bus_day = 'No Adjustment'
@@ -215,12 +208,12 @@ def _coupon_gen_structure(bond):
     noofcpns = len(start_dates)
     structures = deque()
     for no in range(noofcpns):
-        structure = {}
-        structure["start_date"] = start_dates[no]
-        structure["end_date"] = end_dates[no]
+        structure = {"start_date": start_dates[no], "end_date": end_dates[no]}
         structures.append(structure)
 
-    return structures
+    newstructure = list(map(lambda sdate, edate: {"start_date": sdate, "end_date": edate}, start_dates, end_dates))
+
+    return newstructure
 
 
 def floatbond_structures(bonds, holidays=[]):
@@ -410,6 +403,32 @@ def loans_structures(loans):
     return results
 
 
+def fixleg_dates(fixedleg):
+    """
+    Generate date structures. Function can be used for all coupon bearing products with bullet principal repayment
+
+            Parameters:
+                bonds: a dictionary with the following keys - value_date,
+                business_day, issue_date, value_date, maturity,
+                frequency, day_count, date_generation, face_value, coupon,
+                ytm and type.
+
+            Returns:
+                a dictionary with the following keys - date, dcf, time,
+                days, df, rate
+    """
+    if isinstance(bonds, dict):
+        results = _coupon_gen_structure(bonds)
+
+    elif isinstance(bonds, list):
+        results = []
+        for bond in bonds:
+            if isinstance(bond, dict):
+                results.append(_coupon_gen_structure(bond))
+
+    return results
+
+
 def _loan_gen_structure(loan):
     value_date = loan.get("value_date")
     structures = _coupon_gen_structure(loan)
@@ -420,3 +439,82 @@ def _loan_gen_structure(loan):
         pass
 
     return structures
+
+
+def calc_customfix_structures(value_date, structures, day_count, frequency):
+    """
+    Calculate all the values of the custome structure.
+
+            Parameters:
+                value_date: numpy.datetime64.
+                structures: a list of dictionaries with the following keys: start_date, end_date, face_value, coupon, fv_flow.
+                day_count: str
+                frequeny: str
+            Returns:
+                a dictionary with the following keys - value_date, start_date, end_date, face_value, coupon, coupon_interest, cash_flow and cpn_dcf.
+    """
+    newstructures = [dict(x) for x in structures]
+
+    for structure in newstructure:
+        temp_structure = {}
+        temp_structure["cpn_dcf"] = day_cf(bond["day_count"],
+                                      dates[no]["start_date"],
+                                      dates[no]["end_date"],
+                                      bondmat_date=bond["maturity"],
+                                      next_coupon_date=dates[no]["end_date"],
+                                      business_day=bond["business_day"],
+                                      Frequency=bond["frequency"])
+
+        temp_structure["coupon_interest"] = (temp_structure["cpn_dcf"] *
+                                        structure["coupon"] *
+                                        structure["face_value"] / 100)
+        if structure.get("fv_flow"):
+            temp_structure["cash_flow"] = (temp_structure["coupon_interest"] +
+                                            structure["fv_flow"])
+        else:
+            structure["fv_flow"] = 0.00
+            temp_structure["cash_flow"] = (temp_structure["coupon_interest"])
+
+        dates[no].update(temp_structure) # merging the dictionary
+
+    return newstructure
+
+
+def value_customfix_structures(value_date, structures, dis_curve):
+    """
+    Calculate all the values of the custome structure.
+
+            Parameters:
+                value_date: numpy.datetime64.
+                structures: a list of dictionaries with the following keys: value_date, start_date, end_date, face_value, coupon, coupon_interest, cash_flow and cpn_dcf.
+                day_count: str
+                frequeny: str
+                dis_curve: list of ditionaries with the following keys: time and df
+            Returns:
+                a dictionary with the following keys - value_date, start_date, end_date, face_value, coupon, coupon_interest, cash_flow and cpn_dcf.
+    """
+    newstructures = [dict(x) for x in structures]
+
+    for structure in newstructure:
+        temp_structure = {}
+        temp_structure["cpn_dcf"] = day_cf(bond["day_count"],
+                                      dates[no]["start_date"],
+                                      dates[no]["end_date"],
+                                      bondmat_date=bond["maturity"],
+                                      next_coupon_date=dates[no]["end_date"],
+                                      business_day=bond["business_day"],
+                                      Frequency=bond["frequency"])
+
+        temp_structure["coupon_interest"] = (temp_structure["cpn_dcf"] *
+                                        structure["coupon"] *
+                                        structure["face_value"] / 100)
+        if structure.get("fv_flow"):
+            temp_structure["cash_flow"] = (temp_structure["coupon_interest"] +
+                                            structure["fv_flow"])
+        else:
+            structure["fv_flow"] = 0.00
+            temp_structure["cash_flow"] = (temp_structure["coupon_interest"])
+
+        dates[no].update(temp_structure) # merging the dictionary
+
+    return newstructure
