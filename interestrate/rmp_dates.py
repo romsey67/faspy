@@ -41,7 +41,6 @@ def day_count_factor(convention, prev_date, current_date, bondmat_date=None,
         return _dcf_a360(prev_date, current_date)
 
     elif convention in _a365f:
-
         return _dcf_a365f(dt64(prev_date, 'D'), dt64(current_date, 'D'))
 
     elif convention in _a364:

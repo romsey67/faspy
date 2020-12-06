@@ -14,6 +14,26 @@ from collections import deque
 
 def expected_loss(prob_default, exposure_at_default, recovery_rate=None,
                   loss_given_default=None):
+    """
+    Calculate the expected loss.
+
+    Parameters
+    ----------
+    prob_default : float
+        Probability of default.
+    exposure_at_default : float
+        Exposure at default.
+    recovery_rate : float
+        Recovery rate. Defaulted at None. If None 'loss_given_default' must be provided
+    loss_given_default : float
+        Loss given default. Defaulted at None. If None, recovery rate must be provided.
+
+    Returns
+    -------
+    float
+        Expected Loss.
+
+    """
     try:
         rr = float(recovery_rate)
         try:
@@ -92,13 +112,28 @@ def calc_prob_default(data):
     for datum in data:
         datum["prob_default"] = 1 - math.exp((-datum["spread"]) /
                                              ((1 - datum["rec_rate"]) * 10000))
-        datum["cum_prob_default"] = 1 - math.exp((-datum["spread"] * datum["tenor"]) /
-                                                 ((1 - datum["rec_rate"]) * 10000))
-    
+        datum["cum_prob_default"] = 1 - math.exp((-datum["spread"] * datum["tenor"]) / ((1 - datum["rec_rate"]) * 10000))
+
     return datas
 
 
 def prob_default_interpolation(defaults, tenors):
+    """
+    Interpolation of default probability
+
+    Parameters
+    ----------
+    defaults : [{"tenor":float, "prob_default": float, "cum_prob_default": float}]
+        The probability default curve
+    tenors : [float]
+        Tenor stated in the same manner as "tenor" key of "defaults" e.g time as fraction of year or number of days.
+
+    Returns
+    -------
+    [float]
+        Default probability for each tenor.
+
+    """
     x_axis = [x["tenor"] for x in defaults]
     x_axis.insert(0, 0)
 
@@ -119,5 +154,3 @@ def prob_default_interpolation(defaults, tenors):
         result["cum_prob_default"] = cum_def_func(tenor)
         results.append(result)
     return list(results)
-    
-    

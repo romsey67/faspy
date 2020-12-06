@@ -8,9 +8,10 @@ Created on Fri Oct 30 10:49:32 2020
 from .rmp_curves import *
 from .fas_ircls import STRates, LTRates, Rates
 from .conventions import *
-from .rmp_dates import tenor_to_maturity as ttm
+from .rmp_dates import tenor_to_maturity as ttm, generate_dates as gen_dates
 from numpy import datetime64 as dt64
 import math
+from collections import deque
 
 # %%
 
@@ -85,7 +86,7 @@ def flat_curve(start_date, end_date, rate, rate_basis="Money Market",
                day_count="Actual/365", bus_day="No Adjustment",
                tenors=None, return_type="time"):
     if tenors is None:
-        mytenors = [x for x in std_tenors]
+        mytenors = [x for x in std_tenors if x != "12M"]
     else:
         mytenors = list(tenors)
     sdate = dt64(start_date, "D")
@@ -96,6 +97,8 @@ def flat_curve(start_date, end_date, rate, rate_basis="Money Market",
         df = _mmr2df(float(rate), float(dcf))
     elif rate_basis == "Discount Rate":
         df = _dr2df(float(rate), float(dcf))
+    else:
+        return None
 
     time = day_cf("Actual/365", sdate, edate)
     crate = -math.log(df)/time
@@ -121,6 +124,67 @@ def flat_curve(start_date, end_date, rate, rate_basis="Money Market",
             day.update(df)
             ret_array.append(day)
     return ret_array
+
+
+def discount_factor_from_ytm(value_date, maturity, day_count, frequency,
+                             business_day, ytm):
+    # dates is a deque
+    dates = gen_dates(value_date, maturity, issueDate=value_date,
+                      frequency=frequency, business_day=business_day,
+                      method=date_gen_method[1])
+
+    start_dates = deque(dates)
+    end_dates = deque(dates)
+    start_dates.pop()
+    end_dates.popleft()
+    noofcpns = len(start_dates)
+    data = deque()
+    for no in range(noofcpns):
+        structure = {"start_date": start_dates[no], "end_date": end_dates[no]}
+        data.append(structure)
+
+    df_curve =  discount_factor_from_ytm(value_date, data, day_count,
+                                        frequency, business_day, ytm)
+    return df_curve
+
+
+def discount_factor_from_ytm_using_structures(value_date, dates_structure, day_count,
+                                              frequency, business_day, ytm):
+
+    df = 1
+    maturity = date_structure[-1]["end_date"]
+    for datum in dates_structure:
+        if datum["start_date"] >= value_date:
+            datum["dcf"] = day_cf(day_count, datum["start_date"], datum["end_date"],
+                                  bondmat_date=maturity,
+                                  next_coupon_date=datum["end_date"],
+                                  business_day=business_day,
+                                  Frequency=12/frequencies[frequency])
+            datum["time"] = day_cf("Actual/365", datum["start_date"], datum["end_date"],
+                                  bondmat_date=maturity,
+                                  next_coupon_date=datum["end_date"],
+                                  business_day=business_day,
+                                  Frequency=12/frequencies[frequency])
+
+        elif datum["start_date"] < value_date:
+            datum["dcf"] = day_cf(day_count, value_date, datum["end_date"],
+                                  bondmat_date=maturity,
+                                  next_coupon_date=datum["end_date"],
+                                  business_day=business_day,
+                                  Frequency=12/frequencies[frequency])
+            datum["time"] = day_cf("Actual/365", value_date, datum["end_date"],
+                                  bondmat_date=maturity,
+                                  next_coupon_date=datum["end_date"],
+                                  business_day=business_day,
+                                  Frequency=12/frequencies[frequency])
+
+        datum["period_df"] = 1/(1 + ytm * datum["dcf"] / 100)
+        df = datum["df"] = df * datum["period_df"]
+
+    disfac = list(map(lambda datum: {"times": datum["time"], "df": datum["df"]},
+                      data))
+
+    return disfac
 
 
 @numba.njit('float64(float64, float64)')
