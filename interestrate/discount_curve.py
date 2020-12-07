@@ -143,24 +143,28 @@ def discount_factor_from_ytm(value_date, maturity, day_count, frequency,
         structure = {"start_date": start_dates[no], "end_date": end_dates[no]}
         data.append(structure)
 
-    df_curve =  discount_factor_from_ytm(value_date, data, day_count,
+    df_curve =  discount_factor_from_ytm(value_date, list(data), day_count,
                                         frequency, business_day, ytm)
     return df_curve
 
 
-def discount_factor_from_ytm_using_structures(value_date, dates_structure, day_count,
+def discount_factor_from_ytm_using_structures(value_date, date_structure,
+                                              day_count,
                                               frequency, business_day, ytm):
 
     df = 1
     maturity = date_structure[-1]["end_date"]
-    for datum in dates_structure:
+    data = [{"start_date": x["start_date"], "end_date": x["end_date"]}
+            for x in date_structure if value_date < x["end_date"]]
+
+    for datum in data:
         if datum["start_date"] >= value_date:
             datum["dcf"] = day_cf(day_count, datum["start_date"], datum["end_date"],
                                   bondmat_date=maturity,
                                   next_coupon_date=datum["end_date"],
                                   business_day=business_day,
                                   Frequency=12/frequencies[frequency])
-            datum["time"] = day_cf("Actual/365", datum["start_date"], datum["end_date"],
+            datum["time"] = day_cf("Actual/365", value_date, datum["end_date"],
                                   bondmat_date=maturity,
                                   next_coupon_date=datum["end_date"],
                                   business_day=business_day,
@@ -183,7 +187,7 @@ def discount_factor_from_ytm_using_structures(value_date, dates_structure, day_c
 
     disfac = list(map(lambda datum: {"times": datum["time"], "df": datum["df"]},
                       data))
-
+    disfac.insert(0,{"times":0, "df": 1})
     return disfac
 
 
