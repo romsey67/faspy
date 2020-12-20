@@ -11,9 +11,10 @@ from .rmp_dates import generate_dates as gen_dates, \
     frequencies as fre,  day_count_factor as day_cf
 from .conventions import start_basis, frequencies
 from .rmp_curves import interpolation, calc_shortrate_from_df, \
-calc_df_from_shortrate, calc_fwd_df
+calc_df_from_shortrate, calc_fwd_df, shift_curve, discount_factor_from_zspread
 from .discount_curve import discount_factor_from_ytm as ytm_df, \
-    discount_factor_from_ytm_using_structures as ytm_df_struct
+    discount_factor_from_ytm_using_structures as ytm_df_struct, \
+    discount_factor_gen as df_gen
 from collections import deque
 import numpy as np
 import math
@@ -24,180 +25,10 @@ def fixbond(bond):
     # create structure for the bond
     structure = fixbond_structures(bond)
     risks = fixbond_value(bond["value_date"], structure, bond["ytm"],
-                                  bond["day_count"], bond["frequency"],
-                                  bond["business_day"])
+                          bond["day_count"], bond["frequency"],
+                          bond["business_day"])
 
     return {"structure": structure, "risks": risks}
-
-
-def fixbond_structures(bonds):
-    """
-    Generate bonds coupon structures.
-            Parameters:
-                bonds: a dictionary with the following keys - value_date,
-                business_day, issue_date, value_date, maturity,
-                frequency, day_count, date_generation, face_value, coupon,
-                ytm and type.
-            Returns:
-                a dictionary with the following keys - date, dcf, time,
-                days, df, rate
-    """
-    if isinstance(bonds, dict):
-        results = list(_fixbond_gen_structure(bonds))
-    elif isinstance(bonds, list):
-        results = []
-        for bond in bonds:
-            if isinstance(bond, dict):
-                results.append(list(_fixbond_gen_structure(bond)))
-
-    return results
-
-
-def _fixbond_gen_structure(bond):
-    dates = _dates_gen_structure(bond)
-    dates = deque(dates)
-
-    noofcpns = len(dates)
-    for no in range(noofcpns):
-        structure = {}
-        structure["cpn_dcf"] = day_cf(bond["day_count"],
-                                      dates[no]["start_date"],
-                                      dates[no]["end_date"],
-                                      bondmat_date=bond["maturity"],
-                                      next_coupon_date=dates[no]["end_date"],
-                                      business_day=bond["business_day"],
-                                      Frequency=bond["frequency"])
-        structure["coupon"] = bond["coupon"]
-        structure["face_value"] = bond["face_value"]
-        structure["coupon_interest"] = (structure["cpn_dcf"] *
-                                        structure["coupon"] *
-                                        structure["face_value"] / 100)
-        if no != noofcpns - 1:
-            structure["fv_flow"] = 0
-        else:
-            structure["fv_flow"] = structure["face_value"]
-        structure["cash_flow"] = (structure["coupon_interest"] +
-                                  structure["fv_flow"])
-
-        dates[no].update(structure) # merging the dictionary
-
-    if (bond.get("ytm") and bond["value_date"]):
-        fixbond_value(bond["value_date"], dates, bond["ytm"], bond["day_count"],
-                      bond["frequency"])
-
-    return dates
-
-# This function is not in used
-def fixbond_value1(value_date, structures, yld, day_count, frequency,
-                  business_day="No Adjustment"):
-    """
-    Revalue the bond.
-
-            Parameters:
-                value_date: numpy.datetime64.
-                structures: a list of dictionaries with the following keys:
-                    value_date, start_date, end_date, face_value, coupon,
-                    coupon_interest and cpn_dcf. The list must be sorted
-                    in ascending order by either start_date or end_date.
-                    In the absence of coupon_interest and cpn_dcf, they will
-                    be calculated
-                day_count: str
-                frequeny: str
-            Returns:
-                a dictionary with the following keys - value_date, start_date,
-                end_date, face_value, coupon, coupon_interest and cpn_dcf,
-                ytm_df, period_df, accrued, df, and pv
-    """
-    try:
-        ytm = float(yld)
-        ytm1 = ytm + 0.01
-        ytm2 = ytm1 + 0.01
-    except Exception:
-        return None
-    newstructures = [dict(x) for x in structures]
-    maturity = newstructures[-1]["end_date"]
-
-    # Curves to be used in calculation of duration, convexity and pvbp01
-    df_curve = ytm_df_struct(value_date, newstructures, day_count, frequency,
-                             business_day, ytm)
-    x_axis = [x["times"] for x in df_curve]
-    y_axis = [x["df"] for x in df_curve]
-    ifunc = interpolation(x_axis, y_axis, float(1/366), is_function=True)
-
-    df_curve1 = ytm_df_struct(value_date, newstructures, day_count, frequency,
-                              business_day, ytm1)
-    x_axis1 = [x["times"] for x in df_curve1]
-    y_axis1 = [x["df"] for x in df_curve1]
-    ifunc1 = interpolation(x_axis1, y_axis1, float(1/366), is_function=True)
-
-    df_curve2 = ytm_df_struct(value_date, newstructures, day_count, frequency,
-                              business_day, ytm2)
-    x_axis2 = [x["times"] for x in df_curve2]
-    y_axis2 = [x["df"] for x in df_curve2]
-    ifunc2 = interpolation(x_axis2, y_axis2, float(1/366), is_function=True)
-
-    # Calculate the periodic discount factor, accrued interest
-    # print(newstructures)
-    for structure in newstructures:
-        if structure["start_date"] >= value_date:
-            times = day_cf("Actual/365", value_date, structure["end_date"],
-                           bondmat_date=maturity,
-                           next_coupon_date=structure["end_date"],
-                           Frequency=frequency)
-            structure["time"] = times
-            structure["df"] = ifunc(times)
-            structure["df1"] = ifunc1(times)
-            structure["df2"] = ifunc2(times)
-            structure["accrued"] = 0.00
-            structure["pv"] = structure["df"] * structure["cash_flow"]
-            structure["pv1"] = structure["df1"] * structure["cash_flow"]
-            structure["pv2"] = structure["df2"] * structure["cash_flow"]
-
-        elif structure["end_date"] <= value_date:
-            structure["df"] = structure["df1"] = structure["df2"] = np.nan
-            structure["time"] = np.nan
-            structure["accrued"] = 0.00
-            structure["pv"] = structure["pv1"] = structure["pv2"] = 0.00
-
-        else:
-            times = day_cf("Actual/365", value_date, structure["end_date"],
-                           bondmat_date=maturity,
-                           next_coupon_date=structure["end_date"],
-                           Frequency=frequency)
-            structure["time"] = times
-            structure["df"] = ifunc(times)
-            structure["df1"] = ifunc1(times)
-            structure["df2"] = ifunc2(times)
-            structure["pv"] = structure["df"] * structure["cash_flow"]
-            structure["pv1"] = structure["df1"] * structure["cash_flow"]
-            structure["pv2"] = structure["df2"] * structure["cash_flow"]
-            dcf = day_cf(day_count, value_date, structure["end_date"],
-                         bondmat_date=maturity,
-                         next_coupon_date=structure["end_date"],
-                         Frequency=frequency)
-            structure["accrued"] = (dcf * structure["coupon_interest"] /
-                                    structure["cpn_dcf"])
-
-    value = value1 = value2 = value_weighted = 0
-    # loop to calculate macaulay duration
-    for structure in newstructures:
-        value += structure["pv"]
-        value1 += structure["pv1"]
-        value2 += structure["pv2"]
-        if not math.isnan(structure["time"]):
-            structure["time_weigthed_pv"] = structure["time"] * structure["pv"]
-            value_weighted += structure["time_weigthed_pv"]
-        else:
-            structure["time_weigthed_pv"] = 0
-
-    mac_dur = value_weighted / value
-    compound = 12 / frequencies[frequency]
-    mod_dur = mac_dur / pow((1 + ytm/ compound), compound)
-
-    #loop for convexity
-
-
-    return newstructures
 
 
 def fixbond_value(value_date, structures, yld, day_count, frequency,
@@ -275,6 +106,59 @@ def fixbond_value(value_date, structures, yld, day_count, frequency,
             "pvbp01": pvbp01, "convexity": conv, "value": value}
 
 
+def fixbond_structures(bond):
+    """
+    Generate bonds coupon structures.
+            Parameters:
+                bonds: a dictionary with the following keys - value_date,
+                business_day, issue_date, value_date, maturity,
+                frequency, day_count, date_generation, face_value, coupon,
+                ytm and type.
+            Returns:
+                a dictionary with the following keys - date, dcf, time,
+                days, df, rate
+    """
+    results = list(_fixbond_gen_structure(bond))
+
+    return results
+
+
+def _fixbond_gen_structure(bond):
+
+    dates = _dates_gen_structure(bond)
+    dates = deque(dates)
+
+    noofcpns = len(dates)
+    for no in range(noofcpns):
+        structure = {}
+        structure["cpn_dcf"] = day_cf(bond["day_count"],
+                                      dates[no]["start_date"],
+                                      dates[no]["end_date"],
+                                      bondmat_date=bond["maturity"],
+                                      next_coupon_date=dates[no]["end_date"],
+                                      business_day=bond["business_day"],
+                                      Frequency=12/frequencies[bond["frequency"]])
+        structure["coupon"] = bond["coupon"]
+        structure["face_value"] = bond["face_value"]
+        structure["coupon_interest"] = (structure["cpn_dcf"] *
+                                        structure["coupon"] *
+                                        structure["face_value"] / 100)
+        if no != noofcpns - 1:
+            structure["fv_flow"] = 0
+        else:
+            structure["fv_flow"] = structure["face_value"]
+        structure["cash_flow"] = (structure["coupon_interest"] +
+                                  structure["fv_flow"])
+
+        dates[no].update(structure) # merging the dictionary
+
+    if (bond.get("ytm") and bond["value_date"]):
+        fixbond_value(bond["value_date"], dates, bond["ytm"], bond["day_count"],
+                      bond["frequency"])
+
+    return dates
+
+
 def date_structures(bonds):
     """
     Generate coupon structures.
@@ -297,7 +181,6 @@ def date_structures(bonds):
         for bond in bonds:
             if isinstance(bond, dict):
                 results.append(_dates_gen_structure(bond))
-
     return results
 
 
@@ -352,38 +235,36 @@ def _dates_gen_structure(bond):
         structure = {"start_date": start_dates[no], "end_date": end_dates[no]}
         structures.append(structure)
 
-    newstructure = list(map(lambda sdate, edate: {"start_date": sdate, "end_date": edate}, start_dates, end_dates))
+    newstructure = list(map(lambda sdate, edate: {"start_date": sdate,
+                                                  "end_date": edate},
+                            start_dates, end_dates))
 
     return newstructure
 
 
-def floatbond_structures(bonds, holidays=[]):
+def floatbond(bond, ref_curve, val_curve=None):
     """
     Generate bonds coupon structures.
-
             Parameters:
                 bonds: a dictionary with the following keys - value_date,
                 business_day, issue_date, value_date, maturity,
-                frequency, day_count, date_generation, face_value,
-                current_coupon, margin, fixing_basis, market_spread.
-
+                frequency, day_count, date_generation, face_value, coupon,
+                margin.
             Returns:
                 a dictionary with the following keys - date, dcf, time,
                 days, df, rate
     """
-    if isinstance(bonds, dict):
-        results = _floatbond_gen_structures(bonds, holidays=holidays,)
+    # create structure for the bond
+    structure = list(_floatbond_gen_structure(bond))
 
-    elif isinstance(bonds, list):
-        results = []
-        for bond in bonds:
-            if isinstance(bond, dict):
-                results.append(_floatbond_gen_structures(bond,
-                                                         holidays=holidays))
-    return results
+    risks = floatbond_value(bond["value_date"], structure, bond["spread"],
+                            bond["day_count"], bond["frequency"],
+                            ref_curve=ref_curve, val_curve=val_curve)
+
+    return {"structure": structure, "risks": risks}
 
 
-def _floatbond_gen_structures(bond, holidays=[]):
+def _floatbond_gen_structure(bond, holidays=[]):
 
     # generate the face value and coupons
     dates = _dates_gen_structure(bond)
@@ -406,6 +287,7 @@ def _floatbond_gen_structures(bond, holidays=[]):
         # fixing date is a forward date
         if date["fixing_date"] > bond["value_date"]:
             date["is_fixed"] = False
+            date["accrued"] = 0
 
         # fixing date is for the current coupon period
         elif (date["fixing_date"] <= bond["value_date"] and
@@ -415,109 +297,177 @@ def _floatbond_gen_structures(bond, holidays=[]):
             date["coupon_interest"] = (date["cpn_dcf"] *
                                        date["coupon"] *
                                        date["face_value"] / 100)
+            if bond["value_date"] > date["start_date"]:
+                acc_dcf = day_cf(bond["day_count"],
+                                 date["start_date"],
+                                 bond["value_date"],
+                                 bondmat_date=bond["maturity"],
+                                 next_coupon_date=date["end_date"],
+                                 business_day=bond["business_day"],
+                                 Frequency=bond["frequency"])
+                date["accrued"] = acc_dcf / date["cpn_dcf"] * date["coupon_interest"]
+            else:
+                date["accrued"] = 0
+
         else:
             date["is_fixed"] = True
+            date["accrued"] = 0
         date["fv_flow"] = 0
     dates[-1]["fv_flow"] = bond["face_value"]
 
     return dates
 
 
-def floatbond_value(value_date, structures, spread, day_count, df_func=None,
-                    dfs=None):
-    if df_func is not None:
-        ifunc = df_func
-    elif dfs is not None:
-        x_axis = [x["times"] for x in dfs]
-        y_axis = [x["df"] for x in dfs]
-        ifunc = interpolation(x_axis, y_axis, 1.00, is_function=True)
+def floatbond_value(value_date, structures, spread, day_count, frequency,
+                    ref_curve, val_curve=None):
+    if val_curve is None:
+        risks = _float_val_use_zspread(value_date, structures, spread,
+                                       day_count, frequency, ref_curve)
     else:
-        return None
+        risks = _float_val_use_curve(value_date, structures, day_count,
+                                     frequency, ref_curve, val_curve)
 
-    datum = structures[0]
-    df = 1
+    return risks
 
-    for datum in structures:
-        if datum.get("is_fixed") and datum.get("coupon"):
-            time = day_cf("Actual/365", value_date, datum["end_date"])
-            calc_df = ifunc(time)
-            rate = calc_shortrate_from_df(value_date, datum["end_date"],
-                                                 calc_df, day_count)
-            adj_rate = rate + spread
-            adj_df = calc_df_from_shortrate(value_date, datum["end_date"],
-                                                   adj_rate, day_count)
-            datum["fwd_df"] = adj_df
-            df = df * adj_df
-            datum["df"] = df
-            datum["pv"] = datum["df"] * (datum["coupon_interest"] +
-                                         datum["fv_flow"])
-            acc_time = day_cf(day_count, datum["start_date"], value_date)
-            datum["accrued"] = datum["coupon_interest"] * acc_time / datum["cpn_dcf"]
 
-        elif datum["is_fixed"] is False and value_date < datum["fixing_date"]:
-            stime = day_cf("Actual/365", value_date, datum["start_date"])
-            etime = day_cf("Actual/365", value_date, datum["end_date"])
-            fwd_df = calc_fwd_df(stime, etime, ifunc=ifunc)
-            ref_rate = calc_shortrate_from_df(datum["start_date"],
+def _float_val_use_zspread(value_date, structures, zspread, day_count,
+                           frequency, ref_curve):
+
+    # copy only active structure period
+    data = [dict(x) for x in structures if value_date < x["end_date"]]
+    # covert data into list
+    times = np.asarray([day_cf("Actual/365", value_date, x["end_date"])
+                        for x in data])
+
+    # Original Curves
+    ref_df_curve = df_gen(ref_curve, return_type="times")
+    val_df_curve = discount_factor_from_zspread(value_date, structures,
+                                                day_count, frequency,
+                                                ref_df_curve, zspread)
+
+    # Shift the original curves by 1 bp
+    ref_curve1 = dict(ref_curve)
+    ref_curve1["rates"] = shift_curve(ref_curve1["rates"])
+    ref_df_curve1 = df_gen(ref_curve1, return_type="times")
+    val_df_curve1 = discount_factor_from_zspread(value_date, structures,
+                                                 day_count, frequency,
+                                                 ref_df_curve1, zspread)
+
+    # Shift the curves by another 1bp
+    ref_curve2 = dict(ref_curve1)
+    ref_curve2["rates"] = shift_curve(ref_curve2["rates"])
+    ref_df_curve2 = df_gen(ref_curve2, return_type="times")
+    val_df_curve2 = discount_factor_from_zspread(value_date, structures,
+                                                 day_count, frequency,
+                                                 ref_df_curve2, zspread)
+
+    pvs0 = _float_recalc_loop(value_date, data, day_count, frequency,
+                              times, ref_df_curve, val_df_curve)
+    value = np.sum(pvs0)
+
+    pvs1 = _float_recalc_loop(value_date, data, day_count, frequency,
+                              times, ref_df_curve1, val_df_curve1)
+    value1 = np.sum(pvs1)
+
+    pvs2 = _float_recalc_loop(value_date, data, day_count, frequency,
+                              times, ref_df_curve2, val_df_curve2)
+    value2 = np.sum(pvs2)
+    pvbp01 = value1 - value
+    duration = pvbp01 / 0.01
+    duration2 = (value2 - value1) / 0.01
+    convexity = (duration2 - duration) / 0.01
+
+    return {"duration": duration, "pvbp01": pvbp01, "convexity": convexity,
+            "value": value}
+
+
+def _float_val_use_curve(value_date, structures, day_count, frequency,
+                         ref_curve, val_curve):
+
+    # copy only active structure period
+    data = [dict(x) for x in structures if value_date < x["end_date"]]
+    # covert data into list
+    times = np.asarray([day_cf("Actual/365", value_date, x["end_date"])
+                        for x in data])
+
+    # Original Curves
+    ref_df_curve = df_gen(ref_curve, return_type="times")
+    val_df_curve = df_gen(val_curve, return_type="times")
+
+    # Shift the original curves by 1 bp
+    ref_curve1 = dict(ref_curve)
+    ref_curve1["rates"] = shift_curve(ref_curve1["rates"])
+    ref_df_curve1 = df_gen(ref_curve1, return_type="times")
+
+    val_curve1 = dict(val_curve)
+    val_curve1["rates"] = shift_curve(val_curve1["rates"])
+    val_df_curve1 = df_gen(val_curve1, return_type="times")
+
+    # Shift the curves by another 1bp
+    ref_curve2 = dict(ref_curve1)
+    ref_curve2["rates"] = shift_curve(ref_curve2["rates"])
+    ref_df_curve2 = df_gen(ref_curve2, return_type="times")
+
+    val_curve2 = dict(val_curve1)
+    val_curve2["rates"] = shift_curve(val_curve2["rates"])
+    val_df_curve2 = df_gen(val_curve2, return_type="times")
+
+    pvs0 = _float_recalc_loop(value_date, data, day_count, frequency,
+                              times, ref_df_curve, val_df_curve)
+    value = np.sum(pvs0)
+
+    pvs1 = _float_recalc_loop(value_date, data, day_count, frequency,
+                              times, ref_df_curve1, val_df_curve1)
+    value1 = np.sum(pvs1)
+
+    pvs2 = _float_recalc_loop(value_date, data, day_count, frequency,
+                              times, ref_df_curve2, val_df_curve2)
+    value2 = np.sum(pvs2)
+    pvbp01 = value1 - value
+    duration = pvbp01 / 0.01
+    duration2 = (value2 - value1) / 0.01
+    convexity = (duration2 - duration) / 0.01
+
+    return {"duration": duration, "pvbp01": pvbp01, "convexity": convexity,
+            "value": value}
+
+
+def _float_recalc_loop(value_date, data, day_count, frequency,
+                       times,  df_curve, val_df_curve):
+
+    x_axis = [x["times"] for x in df_curve]
+    y_axis = [x["df"] for x in df_curve]
+    ifunc = interpolation(x_axis, y_axis, float(1/366), is_function=True)
+
+    x_val = [x["times"] for x in val_df_curve]
+    y_val = [x["df"] for x in val_df_curve]
+    ifunc_val = interpolation(x_val, y_val, float(1/366), is_function=True)
+    val_dis_curve = [ifunc_val(x) for x in times]
+
+    for datum in data:
+        end_time = day_cf("Actual/365", value_date, datum["end_date"])
+
+        if not datum["is_fixed"]:  # coupon has not been fixed
+            start_time = day_cf("Actual/365", value_date,
+                                datum["start_date"])
+
+            fwd_df = calc_fwd_df(start_time, end_time, ifunc=ifunc)
+            fwd_rate = calc_shortrate_from_df(datum["start_date"],
                                               datum["end_date"],
                                               fwd_df, day_count)
-            datum["coupon"] = ref_rate + datum["margin"]
-            datum["coupon_interest"] = (datum["cpn_dcf"] *
-                                        datum["coupon"] *
+            datum["coupon"] = fwd_rate + datum["margin"]
+            datum["coupon_interest"] = (datum["coupon"] * datum["cpn_dcf"] *
                                         datum["face_value"] / 100)
-            adj_refrate = ref_rate + spread
-            adj_df = calc_df_from_shortrate(datum["start_date"],
-                                                   datum["end_date"], adj_refrate,
-                                                   day_count)
-            datum["fwd_df"] = adj_df
-            df = df * adj_df
-            datum["df"] = df
-            datum["pv"] = datum["df"] * (datum["coupon_interest"] + datum["fv_flow"])
-            datum["accrued"] = 0
 
-    return structures
+        if datum.get("coupon_interest"):
+            datum["cash_flow"] = datum["coupon_interest"] + datum["fv_flow"]
+        else:
+            datum["cash_flow"] = datum["fv_flow"]
 
+    cash_flows = np.asarray([datum["cash_flow"] for datum in data])
+    pvs = cash_flows * val_dis_curve
 
-def floatbond_value2(value_date, structures, day_count, ref_df, market_df):
-
-    ref_x_axis = [x["times"] for x in ref_df]
-    ref_y_axis = [x["df"] for x in ref_df]
-    ref_func = interpolation(ref_x_axis, ref_y_axis, 1.00, is_function=True)
-
-    m_x_axis = [x["times"] for x in market_df]
-    m_y_axis = [x["df"] for x in market_df]
-    m_func = interpolation(m_x_axis, m_y_axis, 1.00, is_function=True)
-
-    datum = structures[0]
-
-    if datum["is_fixed"] is True:
-        time = day_cf("Actual/365", value_date, datum["end_date"])
-        m_df = m_func(time)
-
-        datum["df"] = m_df
-        datum["pv"] = datum["df"] * (datum["coupon_interest"] +
-                                     datum["fv_flow"])
-        acc_time = day_cf(day_count, value_date, datum["start_date"])
-        datum["accrued"] = datum["coupon_interest"] * acc_time / datum["cpn_dcf"]
-
-    for datum in structures:
-        if datum["is_fixed"] is False:
-            stime = day_cf("Actual/365", value_date, datum["start_date"])
-            etime = day_cf("Actual/365", value_date, datum["end_date"])
-            fwd_df = calc_fwd_df(stime, etime, ifunc=ref_func)
-            ref_rate = calc_shortrate_from_df(datum["start_date"],
-                                                     datum["end_date"],
-                                                     fwd_df, day_count)
-            datum["coupon"] = ref_rate + datum["margin"]
-            datum["coupon_interest"] = (datum["cpn_dcf"] *
-                                        datum["coupon"] *
-                                        datum["face_value"] / 100)
-            m_df = m_func(etime)
-            datum["df"] = m_df
-            datum["pv"] = datum["df"] * (datum["coupon_interest"] + datum["fv_flow"])
-            datum["accrued"] = 0
-
-    return structures
+    return pvs
 
 
 def loans_structures(loans):
@@ -547,30 +497,107 @@ def loans_structures(loans):
     return results
 
 
-def fixleg_dates(fixedleg):
-    """
-    Generate date structures. Function can be used for all coupon bearing products with bullet principal repayment
+def fixleg(data, val_curve=None):
+    structures = _fixleg_gen_structure(data)
+    if not data["principal_exchange"]:
+        for structure in structures:
+            structure["cash_flow"] = structure["coupon_interest"]
+    
+    if val_curve is not None:
+        risks = fixleg_value(data["value_date"], structures, data["day_count"],
+                         data["frequency"], val_curve)
+    else:
+        risks = None
+    
+    return {"structure": structures, "risks": risks}
 
-            Parameters:
-                bonds: a dictionary with the following keys - value_date,
-                business_day, issue_date, value_date, maturity,
-                frequency, day_count, date_generation, face_value, coupon,
-                ytm and type.
 
-            Returns:
-                a dictionary with the following keys - date, dcf, time,
-                days, df, rate
-    """
-    if isinstance(bonds, dict):
-        results = _coupon_gen_structure(bonds)
+def _fixleg_gen_structure(data):
 
-    elif isinstance(bonds, list):
-        results = []
-        for bond in bonds:
-            if isinstance(bond, dict):
-                results.append(_coupon_gen_structure(bond))
+    dates = _dates_gen_structure(data)
+    dates = deque(dates)
 
-    return results
+    noofcpns = len(dates)
+    for no in range(noofcpns):
+        structure = {}
+        structure["cpn_dcf"] = day_cf(data["day_count"],
+                                      dates[no]["start_date"],
+                                      dates[no]["end_date"],
+                                      bondmat_date=data["maturity"],
+                                      next_coupon_date=dates[no]["end_date"],
+                                      business_day=data["business_day"],
+                                      Frequency=12/frequencies[data["frequency"]])
+        structure["coupon"] = data["coupon"]
+        structure["face_value"] = data["face_value"]
+        structure["coupon_interest"] = (structure["cpn_dcf"] *
+                                        structure["coupon"] *
+                                        structure["face_value"] / 100)
+        if no != noofcpns - 1:
+            structure["fv_flow"] = 0
+        else:
+            structure["fv_flow"] = structure["face_value"]
+        structure["cash_flow"] = (structure["coupon_interest"] +
+                                  structure["fv_flow"])
+
+        dates[no].update(structure) # merging the dictionary
+
+
+    return dates
+
+
+def fixleg_value(value_date, structures, day_count, frequency, val_curve):
+
+    # copy only active structure period
+    data = [dict(x) for x in structures if value_date < x["end_date"]]
+    # covert data into list
+    times = np.asarray([day_cf("Actual/365", value_date, x["end_date"])
+                        for x in data])
+
+    # Original Curves
+    val_df_curve = df_gen(val_curve, return_type="times")
+
+    # Shift the original curves by 1 bp
+    val_curve1 = dict(val_curve)
+    val_curve1["rates"] = shift_curve(val_curve1["rates"])
+    val_df_curve1 = df_gen(val_curve1, return_type="times")
+
+    # Shift the curves by another 1bp
+    val_curve2 = dict(val_curve1)
+    val_curve2["rates"] = shift_curve(val_curve2["rates"])
+    val_df_curve2 = df_gen(val_curve2, return_type="times")
+
+    pvs0 = _fixleg_recalc_loop(value_date, data, day_count, frequency,
+                               times, val_df_curve)
+    value = np.sum(pvs0)
+
+    pvs1 = _fixleg_recalc_loop(value_date, data, day_count, frequency,
+                               times, val_df_curve1)
+    value1 = np.sum(pvs1)
+
+    pvs2 = _fixleg_recalc_loop(value_date, data, day_count, frequency,
+                               times, val_df_curve2)
+    value2 = np.sum(pvs2)
+    pvbp01 = value1 - value
+    duration = pvbp01 / 0.01
+    duration2 = (value2 - value1) / 0.01
+    convexity = (duration2 - duration) / 0.01
+
+    return {"duration": duration, "pvbp01": pvbp01, "convexity": convexity,
+            "value": value}
+
+
+def _fixleg_recalc_loop(value_date, data, day_count, frequency,
+                        times, val_df_curve):
+
+    x_val = [x["times"] for x in val_df_curve]
+    y_val = [x["df"] for x in val_df_curve]
+    ifunc_val = interpolation(x_val, y_val, float(1/366), is_function=True)
+    val_dis_curve = [ifunc_val(x) for x in times]
+
+    cash_flows = np.asarray([datum["cash_flow"] for datum in data])
+    pvs = cash_flows * val_dis_curve
+
+    return pvs
 
 
 def _loan_gen_structure(loan):
@@ -721,9 +748,6 @@ def _calc_customfix_risks(value_date, structures, day_count, frequency,
     mac_dur = mac_dur / val
     mod_dur = mac_dur(1 + bond["ytm"] /
                       (12 / frequencies[bond["frequency"]]))
-
-
-
 
 
 def create_structures_from_dates(dates, coupons, face_values, fv_flows):

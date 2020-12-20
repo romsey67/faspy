@@ -6,26 +6,27 @@ Created on Mon Nov  2 21:02:58 2020
 @author: RMS671214
 """
 
-from interestrate.cashflows import loans_structures, fixbond_value, \
+from faspy.interestrate.cashflows import loans_structures, fixbond_value, \
     coupon_structures
 import numpy as np
 from faspy.interestrate import rmp_dates as rd
 # %%
 
-mybond = {}
-mybond['issue_date'] = np.datetime64('2018-10-22')
-mybond['value_date'] = np.datetime64('2021-10-22')
-mybond['maturity'] = np.datetime64('2028-10-22')
-mybond['day_count'] = 'Actual/365 Fixed'
-mybond['frequency'] = 'Semi-Annual'
-mybond['business_day'] = 'No Adjustment'
-mybond['date_generation'] = rd.date_gen_method[1]
-mybond['face_value'] = 1000000
-mybond['coupon'] = 10
-mybond['ytm'] = 12.00
-mybond['type'] = 'Fixed Rate Bond'
+myloan = {}
+myloan['issue_date'] = np.datetime64('2018-10-22')
+myloan['value_date'] = np.datetime64('2021-10-22')
+myloan['maturity'] = np.datetime64('2028-10-22')
+myloan['day_count'] = 'Actual/365 Fixed'
+myloan['frequency'] = 'Semi-Annual'
+myloan['business_day'] = 'No Adjustment'
+myloan['date_generation'] = rd.date_gen_method[1]
+myloan['face_value'] = 1000000
+myloan['coupon'] = 10
+myloan['ytm'] = 12.00
+myloan['type'] = 'Fixed Rate Bond'
+myloan["rate_type"] = "fixed"
 
-structures = list(loan_structures(mybond))
+structures = list(loans_structures(myloan))
 print(structures)
 
 # %%
@@ -45,3 +46,7 @@ print("accrued: ", accrued)
 
 coupon_dates = list(coupon_structures(mybond))
 print(coupon_dates)
+
+#%%
+a = ("a", "b")
+b = list(a)

@@ -129,6 +129,7 @@ def day_count_factor(convention, prev_date, current_date, bondmat_date=None,
         else:
             accrued_days = _datediff(prev_date, current_date).astype('int')
             coupon_days = _datediff(prev_date, next_coupon_date).astype('int')
+
             dcf = accrued_days/(Frequency * coupon_days)
 
             return dcf

@@ -91,7 +91,7 @@ def size_adjustment(sales, min_sales=5, max_sales=50):
     if sales <= min_sales:
         return 0.04
     elif sales >= max_sales:
-        return 0.00
+        return 0.00s
     else:
         return 0.04 * (1 - (sales - min_sales)/(max_sales - min_sales))
 
@@ -112,7 +112,10 @@ def calc_prob_default(data):
     for datum in data:
         datum["prob_default"] = 1 - math.exp((-datum["spread"]) /
                                              ((1 - datum["rec_rate"]) * 10000))
-        datum["cum_prob_default"] = 1 - math.exp((-datum["spread"] * datum["tenor"]) / ((1 - datum["rec_rate"]) * 10000))
+        datum["cum_prob_default"] = 1 - math.exp((-datum["spread"] *
+                                                  datum["tenor"]) /
+                                                 ((1 - datum["rec_rate"]) *
+                                                  10000))
 
     return datas
 

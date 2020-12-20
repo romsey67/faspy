@@ -9,6 +9,7 @@ import numba
 import math
 import time
 from collections import deque
+from .conventions import frequencies
 
 
 
@@ -378,6 +379,69 @@ def continuous_rate(value_date, rate, tenor, day_count="Actual/365",
     return crate
 
 
+def shift_curve(curve, bp=0.01):
+    
+    rates = dict(curve)
+    for key in rates:
+        rates[key] += bp
+    return rates
+
+
+def discount_factor_from_zspread(value_date, date_structure, day_count,
+                                 frequency, df_curve, zspread):
+    data = [{"start_date": x["start_date"], "end_date": x["end_date"]}
+            for x in date_structure if value_date < x["end_date"]]
+
+    x_axis = [x["times"] for x in df_curve]
+    y_axis = [x["df"] for x in df_curve]
+    ifunc = interpolation(x_axis, y_axis, 1/366, is_function=True)
+    maturity = data[-1]["end_date"]
+    zdfs = [{"times": 0, "df": 1}]
+    for datum in data:
+        if value_date > datum["start_date"]:
+            time1 = day_cf("Actual/365", value_date, datum["end_date"],
+                           bondmat_date=maturity,
+                           next_coupon_date=datum["end_date"])
+            df = ifunc(time1)
+            fwd_rate = calc_shortrate_from_df(value_date,
+                                              datum["end_date"],
+                                              df, day_count)
+            zfwd_rate = fwd_rate + zspread
+            zfwd_df = calc_df_from_shortrate(value_date, datum["end_date"],
+                                             zfwd_rate, day_count)
+            zdfs.append({"times": time1, "zfwd_df": zfwd_df})
+
+        else:
+            start_time = day_cf("Actual/365", value_date,
+                                datum["start_date"],
+                                bondmat_date=maturity,
+                                next_coupon_date=datum["end_date"])
+            end_time = day_cf("Actual/365", value_date, datum["end_date"],
+                              bondmat_date=maturity,
+                              next_coupon_date=datum["end_date"])
+            fwd_df = calc_fwd_df(start_time, end_time, ifunc=ifunc)
+            fwd_rate = calc_shortrate_from_df(datum["start_date"],
+                                              datum["end_date"],
+                                              fwd_df, day_count)
+
+            zfwd_rate = fwd_rate + zspread
+            zfwd_df = calc_df_from_shortrate(datum["start_date"],
+                                             datum["end_date"],
+                                             zfwd_rate, day_count)
+            zdfs.append({"times": end_time, "zfwd_df": zfwd_df})
+
+    data_len = len(zdfs)
+
+    for i in range(1, data_len, 1):
+        
+        datum = zdfs[i]
+        pdatum = zdfs[i-1]
+        datum["df"] = pdatum["df"] * datum["zfwd_df"]
+
+    zdf_curve = [{"times": x["times"], "df": x["df"]} for x in zdfs]
+    
+
+    return zdf_curve
 
 
 @numba.njit('float64(float64, float64)')
