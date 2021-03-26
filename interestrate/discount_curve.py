@@ -154,11 +154,12 @@ def discount_factor_from_ytm_using_structures(value_date, date_structure,
 
     df = 1
     maturity = date_structure[-1]["end_date"]
+
     data = [{"start_date": x["start_date"], "end_date": x["end_date"]}
-            for x in date_structure if value_date < x["end_date"]]
+            for x in date_structure if value_date < dt64(x["end_date"])]
 
     for datum in data:
-        if datum["start_date"] >= value_date:
+        if dt64(datum["start_date"]) >= value_date:
             datum["dcf"] = day_cf(day_count, datum["start_date"], datum["end_date"],
                                   bondmat_date=maturity,
                                   next_coupon_date=datum["end_date"],

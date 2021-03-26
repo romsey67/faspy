@@ -6,11 +6,11 @@ Created on Mon Nov  2 21:02:58 2020
 @author: RMS671214
 """
 
-from faspy.interestrate.fixincome import fixbond_structures, fixbond_value, \
+from interestrate.fixincome import fixbond_structures, fixbond_value, \
     date_structures, fixbond
 import numpy as np
 from numpy import datetime64 as dt64
-from faspy.interestrate import rmp_dates as rd
+from interestrate import rmp_dates as rd
 # %%
 
 mybond = {}

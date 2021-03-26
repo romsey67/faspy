@@ -6,11 +6,11 @@ Created on Mon Nov  2 21:02:58 2020
 @author: RMS671214
 """
 
-from faspy.interestrate.fixincome import date_structures, calc_customfix_structures, \
+from interestrate.fixincome import date_structures, calc_customfix_structures, \
     value_customfix_structures, create_structures_from_dates
 import numpy as np
-from faspy.interestrate import rmp_dates as rd
-from faspy.interestrate import discount_curve as dcurve
+from interestrate import rmp_dates as rd
+from interestrate import discount_curve as dcurve
 # %%
 
 mybond = {}

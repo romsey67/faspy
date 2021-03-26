@@ -145,10 +145,10 @@ def day_count_factor(convention, prev_date, current_date, bondmat_date=None,
 def _dcf_a365_4ayear(start, end, business_day=None, Frequency=1):
 
     year1 = np.datetime64(start, 'Y')
-    year2 = np.datetime64(end, 'Y')
+    year2 = np.datetime64(dt64(end), 'Y')
     if year2 == year1:
         daysinayear = daysintheyear(start)
-        days = np.int64(end - start)
+        days = np.int64(dt64(end) - start)
         return days/daysinayear
     else:
         daysinayear1 = daysintheyear(start)
@@ -157,7 +157,7 @@ def _dcf_a365_4ayear(start, end, business_day=None, Frequency=1):
 
         daysinayear2 = daysintheyear(end)
         start2 = np.datetime64(year2, 'D')
-        days2 = np.int64(end - start2)
+        days2 = np.int64(dt64(end) - start2)
         return days1/daysinayear1 + days2/daysinayear2
 
 
@@ -178,7 +178,7 @@ def _dcf_a365(prev_date, current_date, business_day=None, Frequency=1):
         years_enddate_m = np.datetime64(prev_date, 'M') + years * 12
         years_enddate = np.datetime64(years_enddate_m, 'D') + start_day
 
-        extra_days = np.int64(current_date - years_enddate)
+        extra_days = np.int64(dt64(current_date) - years_enddate)
 
         if years == 1:
             if extra_days == 0:

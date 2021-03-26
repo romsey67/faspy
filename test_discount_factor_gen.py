@@ -6,7 +6,7 @@ Created on Fri Oct 30 13:36:21 2020
 @author: RMS671214
 """
 
-from faspy.interestrate import discount_curve as dcurve
+from interestrate import discount_curve as dcurve
 
 # %%
 rates = []
