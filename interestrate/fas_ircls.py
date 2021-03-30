@@ -137,7 +137,7 @@ class HistoricalData:
 # %%
 
 class STRate():
-    _basis = ('Money Market', 'Discount Rate')
+    _basis = ('Simple', 'Discount Rate')
 
     def __init__(self, start_date, maturity, rate,
                  day_count='Actual/365 Fixed', rate_basis='Money Market',
@@ -313,7 +313,7 @@ class STRt(Data):
 
 # %%
 class STRates(Data):
-    __basis = ('Money Market', 'Discount Rate')
+    __basis = ('Simple', 'Discount Rate', 'Continuous')
     __termsrates = {'1W': None, '2W': None,
                     '3W': None, '1M': None, '2M': None, '3M': None,
                     '4M': None, '5M': None, '6M': None, '9M': None,
@@ -321,7 +321,7 @@ class STRates(Data):
 
     def __init__(self):
         self.start_date = None
-        self.rate_basis = 'Money Market'
+        self.rate_basis = 'Simple'
         self.day_count = None
         self.business_day = None
         self.data = {}
@@ -355,7 +355,7 @@ class STRates(Data):
             else:
                 raise ValueError('rate_basis is not in the list of acceptable values')
         else:
-            self.__rate_basis = 'Money Market'
+            self.__rate_basis = 'Simple'
 
     @property
     def day_count(self):

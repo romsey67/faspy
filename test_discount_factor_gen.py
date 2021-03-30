@@ -19,7 +19,7 @@ rate = {"value_date": "2020-10-30", "st_busday": "Modified Following",
                   '5Y': 3.00, '10Y': 3.10, '30Y': 3.25}}
 rates.append(rate)
 rate = {"value_date": "2020-10-30", "st_busday": "Modified Following",
-        "st_ratebasis": "Money Market", "st_daycount": "Actual/365",
+        "st_ratebasis": "Simple", "st_daycount": "Actual/365",
         "lt_busday": "No Adjustment", "lt_frequency": "Semi-Annual",
         "lt_daycount": "Actual/Actual",
         "rates": {'O/N': 3.30, '1W': 3.35, '1M': 3.45, '3M': 3.55,
