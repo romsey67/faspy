@@ -23,12 +23,12 @@ rate = {"value_date": "2020-10-30", "st_busday": "Modified Following",
         "lt_busday": "No Adjustment", "lt_frequency": "Semi-Annual",
         "lt_daycount": "Actual/Actual",
         "rates": {'O/N': 3.30, '1W': 3.35, '1M': 3.45, '3M': 3.55,
-                  '6M': 3.65, '12M': 3.75, '1Y': 3.70, '2Y': 3.80, '3Y': 3.90,
+                  '6M': None, '12M': 3.75, '1Y': None, '2Y': 3.80, '3Y': 3.90,
                   '5Y': 4.00, '10Y': 4.10, '30Y': 4.25}}
 rates.append(rate)
 print(rates)
 
-dfs = dcurve.discount_factor_gen(rate, return_type="times")
+dfs = dcurve.discount_factor_gen(rate, return_type="time")
 print(dfs)
 
 # %%

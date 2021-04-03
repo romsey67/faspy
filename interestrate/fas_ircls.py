@@ -170,7 +170,7 @@ class STRate():
 
 # %%
 class STRt(Data):
-    __basis = ('Money Market', 'Discount Rate')
+    __basis = ('Simple', 'Discount Rate', 'Continuous')
     __termsorder = {'O/N': 1, 'T/N': 2, 'S/N': 2.5, '1W': 3, '2W': 4, '3W': 5, '1M': 6,
                     '2M': 7, '3M': 8, '4M': 9, '5M': 10, '6M': 11, '9M': 15,
                     '12M': 20}
@@ -182,7 +182,7 @@ class STRt(Data):
 
     def __init__(self):
         self.value_date = None
-        self.rate_basis = 'Money Market'
+        self.rate_basis = 'Simple'
         self.day_count = None
         self.business_day = None
         self.data = {}
