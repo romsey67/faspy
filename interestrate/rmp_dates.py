@@ -3,7 +3,7 @@ from numpy import datetime64 as dt64, timedelta64 as td64
 import re
 from datetime import datetime
 import numba
-from interestrate.conventions import *
+from .conventions import *
 from collections import deque
 
 
@@ -579,24 +579,24 @@ def mat_tenor_by_month(start_date, tenor, convention=None, business_day=None,
         return new_date
 
 
-@numba.njit(numba.types.NPTimedelta('D')(numba.types.NPDatetime('D'), 
+@numba.njit(numba.types.NPTimedelta('D')(numba.types.NPDatetime('D'),
 numba.types.NPDatetime('D')))
 def _datediff(date1, date2):
     return date2 - date1
 
 
-@numba.njit(numba.types.NPTimedelta('D')(numba.types.NPDatetime('D'), 
+@numba.njit(numba.types.NPTimedelta('D')(numba.types.NPDatetime('D'),
 numba.types.NPDatetime('D')))
 def nb_datediff(date1, date2):
     return date2 - date1
 
 
-@numba.njit(numba.types.NPDatetime('M')(numba.types.NPDatetime('M'), 
+@numba.njit(numba.types.NPDatetime('M')(numba.types.NPDatetime('M'),
 numba.types.NPTimedelta('M')))
 def nb_movedatebymonth(adate, month):
     return adate + month
-    
-@numba.njit(numba.types.NPDatetime('D')(numba.types.NPDatetime('D'), 
+
+@numba.njit(numba.types.NPDatetime('D')(numba.types.NPDatetime('D'),
 numba.types.NPTimedelta('D')))
 def nb_movedatebydays(adate, days):
     return adate + days
