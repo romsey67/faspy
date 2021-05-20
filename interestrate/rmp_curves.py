@@ -14,7 +14,7 @@ from .conventions import frequencies
 
 
 def generate_st_df(value_date, curve, day_count, business_day,
-                   rate_basis='Money Market', holidays=[]):
+                   rate_basis='Simple', holidays=[]):
     new_curve = []
     for k in curve:
         tenor = {}
@@ -26,7 +26,7 @@ def generate_st_df(value_date, curve, day_count, business_day,
         tenor['dcf'] = day_cf(day_count, value_date, tenor['date'])
         tenor['time'] = day_cf('Actual/365', value_date, tenor['date'])
         tenor["days"] = (tenor["date"] - value_date).astype("int")
-        if rate_basis == 'Money Market':
+        if rate_basis == 'Simple':
             tenor['df'] = _mmr2df(tenor['rate'], tenor['dcf'])
         else:
             tenor['df'] = _dr2df(tenor['rate'], tenor['dcf'])
@@ -36,7 +36,7 @@ def generate_st_df(value_date, curve, day_count, business_day,
 
 
 def generate_st_df_bymaturity(value_date, maturity, rate, convention,
-                              business_day, rate_basis='Money Market',
+                              business_day, rate_basis='Simple',
                               holidays=[]):
     result = {}
     dcf = day_cf(convention, value_date, maturity)

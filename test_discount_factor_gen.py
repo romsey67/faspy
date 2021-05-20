@@ -7,7 +7,7 @@ Created on Fri Oct 30 13:36:21 2020
 """
 
 from interestrate import discount_curve as dcurve
-
+import time
 # %%
 rates = []
 rate = {"value_date": "2020-10-30", "st_busday": "Modified Following",
@@ -25,11 +25,14 @@ rate = {"value_date": "2020-10-30", "st_busday": "Modified Following",
         "rates": {'O/N': 3.30, '1W': 3.35, '1M': 3.45, '3M': 3.55,
                   '6M': None, '12M': 3.75, '1Y': None, '2Y': 3.80, '3Y': 3.90,
                   '5Y': 4.00, '10Y': 4.10, '30Y': 4.25}}
-rates.append(rate)
-print(rates)
-
-dfs = dcurve.discount_factor_gen(rate, return_type="time")
-print(dfs)
+#rates.append(rate)
+#print(rates)
+start0 = time.perf_counter()
+for i in range(100):
+        dfs = dcurve.discount_factor_gen(rate, return_type="time")
+end0 = time.perf_counter()
+print(f"Time taken is {end0-start0} seconds")
+#print(dfs)
 
 # %%
 

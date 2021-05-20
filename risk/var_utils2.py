@@ -1,9 +1,11 @@
 import numpy as np
 from faspy.interestrate.rmp_stats import rmpcdf, rmpppf
 import sympy as sy
-from numba import njit
+from numba import njit, jit
+from math import sqrt
 
 # %%
+
 def value_at_risk(assets, correlations):
     np_assets = np.array(assets)
     np_corr = np.array(correlations)
@@ -44,7 +46,7 @@ def vol_from_rates(rate, period=1):
 
 
 def returns_from_rates(data, period=1):
-    rows, columns = data.shape
+    rows = data.shape[0]
     price_current = data[: rows - period]
     price_last = data[period:]
     result = price_current - price_last
@@ -52,7 +54,7 @@ def returns_from_rates(data, period=1):
 
 
 def returns_from_prices(data, period=1):
-    rows, columns = data.shape
+    rows = data.shape[0]
     price_current = data[: rows - period]
     price_last = data[period:]
     returns = np.divide(price_current, price_last)
@@ -72,20 +74,31 @@ def get_cfweight(point1, point2, point):
     return solved_rates
 
 
-def get_cfalloc(vol1, vol2, vol, cor1_2):
+@njit('float64(float64,float64,float64)')
+def get_cfweight2(point1, point2, point):
+    #point = weight * point1 + (1 - weight) * point2
+    #point = weight * point1 + point2 - weight * point2
+    weight = (point - point2)/ (point1-point2)
+    return weight
 
-    alpha = sy.Symbol('alpha')
-    # a = sy.Symbol('a')
-    # b = sy.Symbol('b')
-    # c = sy.Symbol('c')
+
+
+@njit('float64(float64,float64,float64,float64)')
+def get_cfalloc2(vol1, vol2, vol, cor1_2):
     a = vol1**2 + vol2**2 - 2*cor1_2*vol1*vol2
     b = 2 * cor1_2 * vol1 * vol2 - 2 * vol2 ** 2
     c = vol2**2 - vol**2
-
-    expr = a*alpha**2 + b*alpha + c
-    solved_rates = sy.solveset(expr, alpha, domain=sy.S.Reals)
-    return solved_rates
-
+    alpha1 = (-b + sqrt(pow(b,2)-4*a*c))/(2*a)
+    alpha2 = (-b - sqrt(pow(b,2)-4*a*c))/(2*a)
+    #print(alpha1, alpha2)
+    if alpha1 <0 and alpha2 > 0:
+        return alpha2
+    elif alpha1 >0 and alpha2 < 0:
+        return alpha1
+    elif alpha1 > 0 and alpha2 > 0:
+        return min(alpha1, alpha2)
+    else:
+        return 0
 
 # mapping of cash flow to vertices is only applicable to forward products
 # hence the requirement for discount factors
@@ -109,25 +122,13 @@ def map_cf_to_var_vertices(cashflows, disfac, var_vertices, corr, vola):
             index = booltime.index(True)
             
             point1, point2 = disfac[index - 1], disfac[index]
-            weight = get_cfweight(point1, point2, cf['df'])
-            weight = list(weight)
-            weight = float(weight[0])
-
+            weight = get_cfweight2(point1, point2, float(cf['df']))
+            
             vol1, vol2 = vola[index-1], vola[index]
             vol = weight * vol1+ (1-weight)* vol2
             cor1_2 = corr[index-1][index]
 
-            cf_alloc = get_cfalloc(vol1,vol2,vol,cor1_2)
-            cf_alloc = list(cf_alloc)
-
-            cf_alloc = list(map(lambda x: float(x),cf_alloc))
-            cf_alloc = list(filter(lambda x: x>=0 and x <=1,cf_alloc))
-            #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-            #The following need to be check
-            if len(cf_alloc)==0:
-                cf_alloc = 1
-            else:
-                cf_alloc = cf_alloc[0]
+            cf_alloc = get_cfalloc2(vol1,vol2,vol,cor1_2)
             #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
             cf_vertices[index-1] += cf_alloc * cf['pv']
             cf_vertices[index] += (1-cf_alloc) * cf['pv']

@@ -106,17 +106,19 @@ def fixbond_value(value_date, structures, yld, day_count, frequency,
             "pvbp01": pvbp01, "convexity": conv, "value": value}
 
 
+
 def fixbond_structures(bond):
     """
     Generate bonds coupon structures.
             Parameters:
-                bonds: a dictionary with the following keys - value_date,
+                bonds: a dictionary with the following keys -
                 business_day, issue_date, value_date, maturity,
                 frequency, day_count, date_generation, face_value, coupon,
                 ytm and type.
             Returns:
-                a dictionary with the following keys - date, dcf, time,
-                days, df, rate
+                an array of dictionaries with the following keys - 'start_date',
+                'end_date','cpn_dcf', 'coupon', 'face_value', 'coupon_interest'
+                'fv_flow','cash_flow'}
     """
     results = list(_fixbond_gen_structure(bond))
 
@@ -943,3 +945,14 @@ def create_structures_from_dates(dates, coupons, face_values, fv_flows):
     structures = list(map( lambda date, coupon, face_value, fv_flow: {"start_date": date["start_date"], "end_date": date["end_date"], "coupon": coupon, "face_value": face_value, "fv_flow": fv_flow}, dates, coupons, face_values, fv_flows))
 
     return structures
+
+
+def mm_matamount(start, maturity, rate, rate_basis, day_count, principal=10_000_000):
+    dcf = day_cf(day_count, start, maturity)
+    if rate_basis == 'Simple':
+        matamount = principal * (1 + rate * dcf/100)
+    elif rate_basis == 'Continuous':
+        matamount = principal * math.exp(rate * dcf)
+
+    return matamount
+    
