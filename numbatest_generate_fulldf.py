@@ -26,7 +26,7 @@ lt_curves = [{'1Y': 2.70, '2Y': 2.80, '3Y': 2.90,
 
 
 start0 = time.perf_counter()
-for i in range(100):
+for i in range(1):
     dfs = gen_df(vdates, st_curves, st_daycount, st_busday,
                     st_ratebasis, lt_curves, lt_daycount,
                     lt_busday, frequency=6,
@@ -35,4 +35,4 @@ for i in range(100):
 end0 = time.perf_counter()
 print(f"Time taken is {end0-start0} seconds")
 #print(f"Total time = {len(dfs)} and dfs = {dfs}")
-#print(dfs)
+print(dfs)
