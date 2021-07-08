@@ -46,7 +46,7 @@ def df_st(vdates, curves, day_count, business_day,
                                     holidays=holidays)
             tenor['dcf'] = day_cf(day_count, vdate, tenor['date'])
             tenor['time'] = day_cf('Actual/365', vdate, tenor['date'])
-            tenor["days"] = int(tenor["date"] - vdate)
+            tenor["days"] = int((tenor["date"] - vdate).astype("int"))
             if rate_basis == 'Simple':
                 tenor['df'] = _mmr2df(tenor['rate'], tenor['dcf'])
             else:
@@ -116,7 +116,7 @@ def generate_fulldf(vdates, st_curves, st_daycount, st_business_day,
         len_dates = len(lt_cpndates)
         lt_cpnstarts = lt_cpndates[:len_dates - 1]
         lt_cpnends = lt_cpndates[1:]
-        lt_days = [int(nb_datediff(vdate, lt_cpndate))
+        lt_days = [int(nb_datediff(vdate, lt_cpndate).astype("int"))
                         for lt_cpndate in lt_cpndates]
 
         lt_times = [day_cf('Actual/365', vdate, lt_cpnend) for lt_cpnend in lt_cpnends]
@@ -266,7 +266,7 @@ def _calc_lt_maturity(vdates, ltcurves, lt_daycount, lt_business_day, holidays=[
                                     business_day=lt_business_day,
                                     holidays=holidays)
             tenor['time'] = day_cf('Actual/365', vdate, tenor['date'])
-            tenor["days"] = int(tenor["date"] - vdate)
+            tenor["days"] = int((tenor["date"] - vdate).astype("int"))
             newltcurve.append(tenor)
         newltcurves.append(list(newltcurve))
     return newltcurves
