@@ -10,24 +10,24 @@ import numba
 import math
 import time
 from collections import deque
-from interestrate.conventions import frequencies
+from .conventions import frequencies
 
 
 
 def df_st(vdates, curves, day_count, business_day,
             rate_basis='Simple', holidays=[]):
-    
+
     '''
     Calculate a series of historical discount factors
         Parameters:
-            value_dates (list): list of datetime64 dates  
+            value_dates (list): list of datetime64 dates
             curves (list): list of historical rates in dictionary containing tenor as rates
             day_count (str): day count convention
             business_day (str): business day convention
             rate_basis (str): rate basis
 
             Returns:
-                list of list of dictionaries with the following keys - tenor, rate, date, dcf, time, 
+                list of list of dictionaries with the following keys - tenor, rate, date, dcf, time,
                 days and df for each tenor point [[{}]]
     '''
     # len of vdates and curves must be the same
@@ -46,14 +46,14 @@ def df_st(vdates, curves, day_count, business_day,
                                     holidays=holidays)
             tenor['dcf'] = day_cf(day_count, vdate, tenor['date'])
             tenor['time'] = day_cf('Actual/365', vdate, tenor['date'])
-            tenor["days"] = (tenor["date"] - vdate).astype("int")
+            tenor["days"] = int(tenor["date"] - vdate)
             if rate_basis == 'Simple':
                 tenor['df'] = _mmr2df(tenor['rate'], tenor['dcf'])
             else:
                 tenor['df'] = _dr2df(tenor['rate'], tenor['dcf'])
             dfcurve.append(tenor)
         dfcurves.append(list(dfcurve))
-            
+
     return dfcurves
 
 
@@ -64,7 +64,7 @@ def generate_st_df_bymaturity(value_date, maturity, rate, convention,
     dcf = day_cf(convention, value_date, maturity)
 
     time = day_cf('Actual/365', value_date, maturity)
-    
+
     df = None
     if rate_basis == 'Money Market':
         df = 1/(1 + rate * 0.01 * dcf)
@@ -85,17 +85,17 @@ def generate_fulldf(vdates, st_curves, st_daycount, st_business_day,
                     lt_business_day, frequency=6,
                     method="Forward from issue date",
                     holidays=[]):
-    
+
     noofdates = len(vdates)
     # An array of ST discount factors
-    sts_ = df_st(vdates, st_curves, st_daycount, st_business_day, 
+    sts_ = df_st(vdates, st_curves, st_daycount, st_business_day,
                     rate_basis=st_rate_basis)
-    
-    parrates_data = _convert_strates_toparrate(vdates, sts_, lt_business_day, lt_daycount, 
+
+    parrates_data = _convert_strates_toparrate(vdates, sts_, lt_business_day, lt_daycount,
                 frequency)
-    
+
     _combinedparrates(parrates_data, lt_curves, lt_daycount, lt_business_day, holidays=[])
-    
+
     # an array of LT data with the same format as sts_ variable except for dcf and df keys
     new_ltcurves = _calc_lt_maturity(vdates,lt_curves, lt_daycount, lt_business_day, holidays)
 
@@ -116,13 +116,14 @@ def generate_fulldf(vdates, st_curves, st_daycount, st_business_day,
         len_dates = len(lt_cpndates)
         lt_cpnstarts = lt_cpndates[:len_dates - 1]
         lt_cpnends = lt_cpndates[1:]
-        lt_days = [nb_datediff(vdate, lt_cpndate).astype("int") 
+        lt_days = [int(nb_datediff(vdate, lt_cpndate))
                         for lt_cpndate in lt_cpndates]
+
         lt_times = [day_cf('Actual/365', vdate, lt_cpnend) for lt_cpnend in lt_cpnends]
         lt_dcfs = list(map(lambda startdate, enddate: day_cf(lt_daycount, startdate,
                                         enddate, bondmat_date=maturity,
                                         next_coupon_date=enddate), lt_cpnstarts, lt_cpnends))
-        
+
         interp_par = interpolation(ori_partimes, ori_parrates, 1, model='chip', is_function=True)
         # interpolated par rates for each coupon date
         lt_parrates = [float(interp_par(lt_time)) for lt_time in lt_times]
@@ -133,14 +134,16 @@ def generate_fulldf(vdates, st_curves, st_daycount, st_business_day,
         full_time = parrates_data[x]['dftimes']
         full_dfs = parrates_data[x]['dfs']
         full_days = parrates_data[x]['days']
+
         lt_size = len(lt_times)
         # lt_dfs is to keep the discount factor for each coupon date
-        lt_dfs = [] 
-        
+        lt_dfs = []
+        #print(f"lt_days = {len(lt_days)} and lt_days = {lt_days}")
+        #print(f"lt_times = {len(lt_times)} and lt_times = {lt_times}")
         for i in range(lt_size):
-            
+
             ctime = lt_times[i]
-            days = lt_days[i]
+            days = lt_days[i+1]
             par_rate = lt_parrates[i]
             # procedure if ctime IS within the current discount factor time range
             if ctime <= max(full_time):
@@ -148,21 +151,21 @@ def generate_fulldf(vdates, st_curves, st_daycount, st_business_day,
                 try:
                     # index return ValueError if value cant be found
                     # index error is handled in the except statement
-                    index = time_bool.index(True) 
-                    lt_dfs.append(full_dfs[index])                 
+                    index = time_bool.index(True)
+                    lt_dfs.append(full_dfs[index])
                 except:
                     time_bool = [ctime > ptime for ptime in full_time]
                     # find index of time which is the first to be more than ctime
                     index = time_bool.index(True)
                     idf = interpolation(full_time, full_dfs, ctime)
-                    lt_dfs.append(idf) 
-                    
+                    lt_dfs.append(idf)
+
             # procedure if ctime IS NOT within the current discount factor time range
             else:
                 dcfs1 = nparray(lt_dcfs[:i])
                 par_dfs = nparray(lt_dfs[:i])
                 cpn_pv = dcfs1 * par_dfs * par_rate * 0.01
-                #cpn_pv = list(map(lambda dcf, df: dcf * df * par_rate * 0.01, 
+                #cpn_pv = list(map(lambda dcf, df: dcf * df * par_rate * 0.01,
                 #                    dcfs1, par_dfs))
                 values = npsum(cpn_pv)
                 cdf = (1 - values) / (1 + par_rate * 0.01 * lt_dcfs[i])
@@ -171,7 +174,7 @@ def generate_fulldf(vdates, st_curves, st_daycount, st_business_day,
                 full_dfs.append(cdf)
                 full_days.append(days)
         result.append({"times": full_time, 'dfs': full_dfs, 'days': full_days})
-        
+
 
     return result
 
@@ -184,7 +187,7 @@ def _convert_strates_toparrate(vdates, strates, lt_business_day, lt_daycount, fr
 
     #using deques to make appending faster
     st2compound = convert_shortrate_to_compounding
-    
+
     # processing the historical ST rates
     datasize =  len(vdates)
     result = deque()
@@ -207,14 +210,14 @@ def _convert_strates_toparrate(vdates, strates, lt_business_day, lt_daycount, fr
         days.insert(0,0)
         result.append({'value_dates': vdates, 'partimes': par_time, 'parrates': par_rate,
         'dftimes': df_time, 'dfs': df_df, "dfdates": df_date, 'pardates': par_date, 'days': days})
-    
+
     return list(result)
 
 
 def _combinedparrates(basedata, ltcurves, lt_daycount, lt_business_day, holidays=[]):
     # Processing the historical long term rates
     lts_ = deque()
-    
+
     noofdates = len(basedata)
     for x in range(noofdates):
         ltcurve = ltcurves[x]
@@ -222,7 +225,7 @@ def _combinedparrates(basedata, ltcurves, lt_daycount, lt_business_day, holidays
         par_time = basedata[x]['partimes']
         par_rate = basedata[x]['parrates']
         par_date = basedata[x]['pardates']
-        par_days = basedata[x]['days']
+        #par_days = basedata[x]['days']
         for k in ltcurve:
             rate = ltcurve[k]
             maturity = ttm(vdate, k, convention=lt_daycount,
@@ -231,22 +234,22 @@ def _combinedparrates(basedata, ltcurves, lt_daycount, lt_business_day, holidays
             timetomaturity = day_cf('Actual/365', vdate, maturity)
             noofdays = (maturity - vdate).astype("int")
             time_bool = [timetomaturity >= ptime for ptime in par_time]
-            
+
             try:
                 index = time_bool.index(False)
                 if timetomaturity not in par_time:
                     par_time.insert(index, timetomaturity)
                     par_rate.insert(index, rate)
                     par_date.insert(index, maturity)
-                    par_days.insert(index, noofdays)
+                    #par_days.insert(index, noofdays)
 
-            except ValueError:  
+            except ValueError:
                 if timetomaturity not in par_time:
                     par_time.append(timetomaturity)
                     par_rate.append(rate)
                     par_date.append(maturity)
-                    par_days.append(noofdays)
-            
+                    #par_days.append(noofdays)
+
 
 def _calc_lt_maturity(vdates, ltcurves, lt_daycount, lt_business_day, holidays=[] ):
     datasize = len(vdates)
@@ -263,7 +266,7 @@ def _calc_lt_maturity(vdates, ltcurves, lt_daycount, lt_business_day, holidays=[
                                     business_day=lt_business_day,
                                     holidays=holidays)
             tenor['time'] = day_cf('Actual/365', vdate, tenor['date'])
-            tenor["days"] = (tenor["date"] - vdate).astype("int")
+            tenor["days"] = int(tenor["date"] - vdate)
             newltcurve.append(tenor)
         newltcurves.append(list(newltcurve))
     return newltcurves
@@ -284,10 +287,10 @@ def solver_rate_from_compounded_df(dis_factor,daycount_factors):
             fv = fv * (1 + (rate* 0.01*dcfs[d]) )
 
     fv = dis_factor * fv - 1
-    
+
     solved_rates = sy.solveset(fv, rate, domain=sy.S.Reals)
     new_rates = []
-    
+
     solved_rates = list(solved_rates)
     for i in range(len(solved_rates)):
         try:
@@ -356,7 +359,7 @@ def continuous_rate(value_date, rate, tenor, day_count="Actual/365",
 
 
 def shift_curve(curve, bp=0.01):
-    
+
     rates = dict(curve)
     for key in rates:
         rates[key] += bp
@@ -409,13 +412,13 @@ def discount_factor_from_zspread(value_date, date_structure, day_count,
     data_len = len(zdfs)
 
     for i in range(1, data_len, 1):
-        
+
         datum = zdfs[i]
         pdatum = zdfs[i-1]
         datum["df"] = pdatum["df"] * datum["zfwd_df"]
 
     zdf_curve = [{"times": x["times"], "df": x["df"]} for x in zdfs]
-    
+
 
     return zdf_curve
 
@@ -462,7 +465,7 @@ def convert_shortrate_to_compounding(rate, start, end, frequency=12,
         cmp_dcf = day_cf(compound_dc,prev_cpn, cur_date,
                                bondmat_date = dates[-1], next_coupon_date = next_cpn,
                                business_day = compound_busday,
-                               Frequency = compound_fre)        
+                               Frequency = compound_fre)
         li_cpn_dcf.append(cmp_dcf)
 
     result = solver_rate_from_compounded_df(df,li_cpn_dcf)
@@ -475,7 +478,7 @@ def interpolation(x_axis, y_axis, x_value, model='chip', method=None,
                   is_function=False):
     methods = ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic',
                'previous', 'next']
-    
+
     models = ['akima', 'chip', 'interp1d', 'cubicspline', 'krogh',
               'barycentric']
 
@@ -545,4 +548,3 @@ def _df2dr(df, dcf):
 def _dr2df(rate, dcf):
     df = 1 - rate * 0.01 * dcf
     return df
-

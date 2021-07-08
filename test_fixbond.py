@@ -23,14 +23,14 @@ mybond['business_day'] = 'No Adjustment'
 mybond['date_generation'] = rd.date_gen_method[1]
 mybond['face_value'] = 1000000
 mybond['coupon'] = 10.00
-mybond['ytm'] = 10.00
-mybond['type'] = 'Fixed Rate Bond'
+mybond['ytm'] = None #10.00
+#mybond['type'] = 'Fixed Rate Bond'
 
 structures = list(fixbond_structures(mybond))
 print("STRUCTURES")
-print("===========")
+print("===============================")
 print(structures)
-
+print("================================")
 try:
     import pandas as pd
     pd1 = pd.DataFrame(structures)
@@ -46,7 +46,7 @@ testdata = {"value_date":dt64("2020-05-01"), "maturity": dt64("2025-10-01"),
             "date_generation": "Backward from maturity date",
             "face_value": 10000000, "coupon": 2.00, "ytm": 2.00}
 val = fixbond(testdata)
-print(val["risks"])
+#print(val["structure"])
 
 
 try:
