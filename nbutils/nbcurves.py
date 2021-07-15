@@ -206,7 +206,7 @@ def _convert_strates_toparrate(vdates, strates, lt_business_day, lt_daycount, fr
         df_df.insert(0, 1.0)
         df_date = [stpoint['date'] for stpoint in strate]
         par_date = df_date.copy()
-        days = [nb_datediff(vdate, stpoint['date']).astype('int')  for stpoint in strate]
+        days = [int(nb_datediff(vdate, stpoint['date']).astype('int'))  for stpoint in strate]
         days.insert(0,0)
         result.append({'value_dates': vdates, 'partimes': par_time, 'parrates': par_rate,
         'dftimes': df_time, 'dfs': df_df, "dfdates": df_date, 'pardates': par_date, 'days': days})

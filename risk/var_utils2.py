@@ -108,17 +108,22 @@ def map_cf_to_var_vertices(cashflows, disfac, var_vertices, corr, vola):
     mymax = max(var_vertices)
     mymin = min(var_vertices)
     for cf in cashflows:
-        if cf['times'] < mymin:
+        if cf.get('times'):
+            thepoint = cf['times']
+        elif cf.get('days'):
+            thepoint = cf['days']
+
+        if thepoint < mymin:
             index = 0
             vol = vola[index]
             cf_vertices[index] = cf_vertices[index] + cf['pv']
         
-        elif cf['times'] > mymax:
+        elif thepoint > mymax:
             index = len(var_vertices) -1
             vol = vola[index]
             cf_vertices[index] = cf_vertices[index] + cf['pv']
         else:
-            booltime = list(map(lambda x: x > cf["times"], var_vertices))
+            booltime = list(map(lambda x: x > thepoint, var_vertices))
             index = booltime.index(True)
             
             point1, point2 = disfac[index - 1], disfac[index]
