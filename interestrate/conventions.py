@@ -6,7 +6,7 @@ Created on Tue Jul  7 17:33:15 2020
 @author: RMS671214
 """
 std_tenors =('1W', '1M', '3M', '6M', '12M', '1Y', '2Y', '3Y', '5Y', '10Y', '30Y')
-rate_basises = ("Simple", "Disount Rate", "Continuous")
+rate_basises = ("Simple", "Discount Rate", "Continuous")
 convs = ('Actual/365', 'Actual/365 Fixed', 'Actual/365L', 'Actual/364',
          'Actual/360', 'Eurobond basis (ISDA 2006)', '30A/360', '30/360 US',
          '30/360 ICMA', 'Eurobond basis (ISDA 2000)', 'Actual/Actual',

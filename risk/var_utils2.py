@@ -18,7 +18,7 @@ def logreturns(prices, period=1):
     Calculate the log returns of prices
         Parameters:
             prices: numpy.array. An array of prices. Variables are column based
-            period: int. number of observation period to calulate the returns
+            period: int. number of holding period to calulate the returns
         Returns:
             numpy.array. An array of log returns
 
